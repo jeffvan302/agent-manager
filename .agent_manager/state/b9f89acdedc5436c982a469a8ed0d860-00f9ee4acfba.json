@@ -1,0 +1,27 @@
+{
+  "task_id": "b9f89acdedc5436c982a469a8ed0d860",
+  "goal": "Phase 2 smoke test",
+  "step_index": 1,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Phase 2 smoke test",
+      "name": null,
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "Phase 2 smoke test",
+      "name": null,
+      "metadata": {
+        "stop_reason": "completed"
+      }
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [],
+  "status": "completed",
+  "metadata": {
+    "consecutive_failures": 0
+  }
+}

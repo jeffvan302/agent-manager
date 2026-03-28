@@ -1,13 +1,13 @@
-"""LM Studio provider adapter placeholder for Phase 2."""
+"""LM Studio provider adapter using the OpenAI-compatible API surface."""
 
 from __future__ import annotations
 
-from agent_manager.providers.base import BaseProvider
-from agent_manager.types import ProviderRequest, ProviderResult
+from agent_manager.providers.openai_provider import OpenAICompatibleChatProvider
 
 
-class LMStudioProvider(BaseProvider):
+class LMStudioProvider(OpenAICompatibleChatProvider):
     provider_name = "lmstudio"
+    default_base_url = "http://localhost:1234/v1"
+    default_api_key_env = "LMSTUDIO_API_KEY"
+    requires_api_key = False
 
-    async def generate(self, request: ProviderRequest) -> ProviderResult:
-        raise NotImplementedError("LMStudioProvider is planned for Phase 2.")

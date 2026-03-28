@@ -196,6 +196,7 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(result.state.status, "completed")
         self.assertEqual(result.tool_results[0]["metadata"]["tool_call_id"], "provider-call-123")
         self.assertEqual(result.tool_results[0]["output"]["tool_call_id"], "provider-call-123")
+        self.assertEqual(result.state.messages[-3].metadata["tool_calls"][0]["id"], "provider-call-123")
         self.assertEqual(result.state.messages[-2].metadata["tool_call_id"], "provider-call-123")
 
     def test_config_can_load_from_toml(self) -> None:

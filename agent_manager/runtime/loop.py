@@ -157,11 +157,11 @@ class AgentLoop:
 
             if last_result.text:
                 state.messages.append(
-                    Message(
-                        role="assistant",
-                        content=last_result.text,
-                        metadata={"stop_reason": last_result.stop_reason or "completed"},
-                    )
+                    self._assistant_message_from_result(last_result)
+                )
+            elif last_result.tool_calls:
+                state.messages.append(
+                    self._assistant_message_from_result(last_result)
                 )
 
             if last_result.tool_calls:
@@ -277,6 +277,16 @@ class AgentLoop:
         if isinstance(result.output, str):
             return result.output
         return json.dumps(result.output, ensure_ascii=True)
+
+    def _assistant_message_from_result(self, result: ProviderResult) -> Message:
+        metadata = {"stop_reason": result.stop_reason or "completed"}
+        if result.tool_calls:
+            metadata["tool_calls"] = [call.to_dict() for call in result.tool_calls]
+        return Message(
+            role="assistant",
+            content=result.text or "",
+            metadata=metadata,
+        )
 
     def request_interrupt(self) -> None:
         self._interrupt_requested = True
