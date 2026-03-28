@@ -24,8 +24,8 @@ class OpenAICompatibleChatProvider(HTTPProvider):
     requires_api_key = False
     capabilities = ProviderCapabilities(
         supports_tools=True,
-        supports_streaming=True,
-        supports_structured_output=True,
+        supports_streaming=False,
+        supports_structured_output=False,
         supports_system_messages=True,
     )
 

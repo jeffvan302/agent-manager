@@ -7,10 +7,12 @@ from typing import Any
 
 from agent_manager.config import ProviderConfig
 from agent_manager.providers.anthropic_provider import AnthropicProvider
+from agent_manager.providers.base import HTTPProvider
 from agent_manager.providers.gemini_provider import GeminiProvider
 from agent_manager.providers.lmstudio_provider import LMStudioProvider
 from agent_manager.providers.ollama_provider import OllamaProvider
 from agent_manager.providers.openai_provider import OpenAIProvider
+from agent_manager.errors import ProviderRequestError
 from agent_manager.types import Message, ProviderRequest
 
 
@@ -98,6 +100,37 @@ class CaptureOllamaProvider(CaptureMixin, OllamaProvider):
 
 class CaptureLMStudioProvider(CaptureMixin, LMStudioProvider):
     pass
+
+
+class RetryableTestProvider(HTTPProvider):
+    provider_name = "retry-test"
+    default_base_url = "https://example.test"
+
+    def __init__(self, failures_before_success: int, config: ProviderConfig) -> None:
+        super().__init__(config)
+        self.failures_before_success = failures_before_success
+        self.calls = 0
+        self.last_headers: Mapping[str, str] | None = None
+
+    async def generate(self, request: ProviderRequest):
+        del request
+        raise NotImplementedError
+
+    def _request_json_blocking(
+        self,
+        method: str,
+        url: str,
+        payload: Mapping[str, Any] | None,
+        headers: Mapping[str, str],
+        timeout: float,
+    ) -> dict[str, Any]:
+        del method, url, payload, timeout
+        self.calls += 1
+        self.last_headers = headers
+        if self.failures_before_success > 0:
+            self.failures_before_success -= 1
+            raise ProviderRequestError("transient failure", retryable=True)
+        return {"ok": True}
 
 
 class ProviderAdapterTests(unittest.TestCase):
@@ -290,6 +323,26 @@ class ProviderAdapterTests(unittest.TestCase):
         self.assertNotIn("Authorization", provider.last_headers)
         self.assertEqual(result.text, "Local answer.")
         self.assertEqual(result.stop_reason, "completed")
+
+    def test_http_provider_retries_and_sets_user_agent(self) -> None:
+        provider = RetryableTestProvider(
+            failures_before_success=2,
+            config=ProviderConfig(
+                name="retry-test",
+                model="n/a",
+                settings={
+                    "request_retries": 3,
+                    "request_retry_backoff_seconds": 0,
+                },
+            ),
+        )
+
+        response = asyncio.run(provider._request_json("POST", "test", payload={"ok": True}))
+
+        self.assertEqual(response["ok"], True)
+        self.assertEqual(provider.calls, 3)
+        self.assertTrue(provider.last_headers["User-Agent"].startswith("agent-manager/"))
+        self.assertFalse(OpenAIProvider(ProviderConfig(settings={"api_key": "x"})).capabilities.supports_streaming)
 
 
 if __name__ == "__main__":

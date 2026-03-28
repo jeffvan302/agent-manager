@@ -17,6 +17,14 @@ class ProviderNotFoundError(ProviderError):
     """Raised when a requested provider is not registered."""
 
 
+class ProviderRequestError(ProviderError):
+    """Raised when a provider request fails."""
+
+    def __init__(self, message: str, *, retryable: bool = False) -> None:
+        super().__init__(message)
+        self.retryable = retryable
+
+
 class ToolError(AgentManagerError):
     """Base tool error."""
 
@@ -35,4 +43,3 @@ class LoopLimitExceededError(AgentManagerError):
 
 class CheckpointError(AgentManagerError):
     """Raised when checkpoint storage fails."""
-

@@ -16,8 +16,9 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from agent_manager.config import ProviderConfig
-from agent_manager.errors import ConfigurationError, ProviderError
+from agent_manager.errors import ConfigurationError, ProviderError, ProviderRequestError
 from agent_manager.types import ProviderRequest, ProviderResult
+from agent_manager.version import __version__
 
 
 @dataclass(slots=True)
@@ -88,6 +89,7 @@ class HTTPProvider(BaseProvider):
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
+            "User-Agent": f"agent-manager/{__version__}",
         }
         configured_headers = self.config.settings.get("headers")
         if isinstance(configured_headers, Mapping):
@@ -108,14 +110,25 @@ class HTTPProvider(BaseProvider):
         if headers:
             request_headers.update(headers)
         timeout = float(self.config.settings.get("request_timeout_seconds", 60.0))
-        return await asyncio.to_thread(
-            self._request_json_blocking,
-            method,
-            url,
-            payload,
-            request_headers,
-            timeout,
-        )
+        max_attempts = max(int(self.config.settings.get("request_retries", 3)), 1)
+        base_backoff_seconds = float(self.config.settings.get("request_retry_backoff_seconds", 0.5))
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                return await asyncio.to_thread(
+                    self._request_json_blocking,
+                    method,
+                    url,
+                    payload,
+                    request_headers,
+                    timeout,
+                )
+            except ProviderRequestError as exc:
+                if not exc.retryable or attempt >= max_attempts:
+                    raise
+                await asyncio.sleep(base_backoff_seconds * attempt)
+
+        raise ProviderError(f"{self.provider_name} request failed after retry exhaustion.")
 
     def _build_url(self, path: str, *, query: Mapping[str, Any] | None = None) -> str:
         base_url = self.resolve_base_url()
@@ -149,12 +162,14 @@ class HTTPProvider(BaseProvider):
                 raw_body = response.read().decode("utf-8")
         except HTTPError as exc:
             error_body = exc.read().decode("utf-8", errors="replace")
-            raise ProviderError(
-                f"{self.provider_name} API error ({exc.code}): {error_body}"
+            raise ProviderRequestError(
+                f"{self.provider_name} API error ({exc.code}): {error_body}",
+                retryable=exc.code in {408, 409, 429, 500, 502, 503, 504},
             ) from exc
         except URLError as exc:
-            raise ProviderError(
-                f"{self.provider_name} request failed: {exc.reason}"
+            raise ProviderRequestError(
+                f"{self.provider_name} request failed: {exc.reason}",
+                retryable=True,
             ) from exc
 
         if not raw_body:

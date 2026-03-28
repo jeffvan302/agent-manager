@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any
+
 from agent_manager.config import RuntimeConfig, load_config
 from agent_manager.context.pipeline import PreCallPipeline
+from agent_manager.memory.retrieval import BaseRetriever
 from agent_manager.observability import configure_logging, get_logger
 from agent_manager.providers.base import BaseProvider
 from agent_manager.providers.factory import build_provider
 from agent_manager.runtime.loop import AgentLoop
 from agent_manager.state.checkpoint import CheckpointManager
 from agent_manager.state.store import JsonFileStateStore, StateStore
+from agent_manager.tools.builtins import register_builtin_tools
 from agent_manager.tools.executor import ToolExecutor
 from agent_manager.tools.policies import PolicyEngine
 from agent_manager.tools.registry import ToolRegistry
@@ -26,6 +31,10 @@ class AgentSession:
         provider: BaseProvider | None = None,
         tools: ToolRegistry | None = None,
         state_store: StateStore | None = None,
+        retriever: BaseRetriever | None = None,
+        include_builtin_tools: bool = True,
+        working_directory: str | Path | None = None,
+        tool_context_metadata: dict[str, Any] | None = None,
     ) -> None:
         self.config = config or load_config()
         configure_logging(
@@ -34,7 +43,17 @@ class AgentSession:
         )
         self.logger = get_logger("runtime.session")
         self.provider = provider or build_provider(self.config.provider)
-        self.tools = tools or ToolRegistry()
+        self.working_directory = Path(working_directory or Path.cwd()).resolve(strict=False)
+        self.tool_context_metadata = dict(tool_context_metadata or {})
+        self.tool_context_metadata.setdefault(
+            "filesystem_roots",
+            [str(self.working_directory)],
+        )
+        self.tools = self._build_tool_registry(
+            tools=tools,
+            retriever=retriever,
+            include_builtin_tools=include_builtin_tools,
+        )
         self.policy_engine = PolicyEngine(self.config.profile)
         self.tool_executor = ToolExecutor(self.tools, self.policy_engine)
         self.state_store = state_store or JsonFileStateStore(
@@ -49,6 +68,8 @@ class AgentSession:
             tool_executor=self.tool_executor,
             context_pipeline=self.context_pipeline,
             checkpoints=self.checkpoints,
+            working_directory=self.working_directory,
+            tool_context_metadata=self.tool_context_metadata,
         )
 
     async def run_async(self, prompt: str, task_id: str | None = None) -> AgentRunResult:
@@ -85,3 +106,20 @@ class AgentSession:
                 "details": {"provider": self.provider.provider_name},
             },
         )
+
+    def _build_tool_registry(
+        self,
+        *,
+        tools: ToolRegistry | None,
+        retriever: BaseRetriever | None,
+        include_builtin_tools: bool,
+    ) -> ToolRegistry:
+        if tools is not None and not include_builtin_tools:
+            return tools
+
+        registry = ToolRegistry()
+        if include_builtin_tools:
+            register_builtin_tools(registry, retriever=retriever)
+        if tools is not None:
+            registry.register_many(tools.all(), replace=True)
+        return registry

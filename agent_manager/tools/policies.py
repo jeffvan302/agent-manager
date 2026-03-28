@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from agent_manager.errors import PolicyViolationError
 from agent_manager.tools.base import ToolSpec
@@ -15,6 +16,8 @@ class ToolPolicyProfile:
     allowed_tools: set[str] = field(default_factory=set)
     denied_tools: set[str] = field(default_factory=set)
     denied_tags: set[str] = field(default_factory=set)
+    allowed_permissions: set[str] = field(default_factory=set)
+    denied_permissions: set[str] = field(default_factory=set)
 
 
 DEFAULT_PROFILES: dict[str, ToolPolicyProfile] = {
@@ -22,6 +25,7 @@ DEFAULT_PROFILES: dict[str, ToolPolicyProfile] = {
         name="readonly",
         allow_all=True,
         denied_tags={"write", "shell", "network"},
+        denied_permissions={"filesystem:write", "process:execute", "network:request"},
     ),
     "local-dev": ToolPolicyProfile(name="local-dev", allow_all=True),
     "coding-agent": ToolPolicyProfile(name="coding-agent", allow_all=True),
@@ -41,7 +45,14 @@ class PolicyEngine:
                 ToolPolicyProfile(name=profile, allow_all=True),
             )
 
-    def assert_allowed(self, spec: ToolSpec) -> None:
+    def assert_allowed(
+        self,
+        spec: ToolSpec,
+        *,
+        context: Any | None = None,
+        arguments: dict[str, Any] | None = None,
+    ) -> None:
+        del context, arguments
         if spec.name in self.profile.denied_tools:
             raise PolicyViolationError(
                 f"Tool '{spec.name}' is blocked by profile '{self.profile.name}'."
@@ -54,11 +65,25 @@ class PolicyEngine:
                 f"under profile '{self.profile.name}'."
             )
 
+        blocked_permissions = set(spec.permissions) & self.profile.denied_permissions
+        if blocked_permissions:
+            raise PolicyViolationError(
+                f"Tool '{spec.name}' requires blocked permissions "
+                f"{sorted(blocked_permissions)} under profile '{self.profile.name}'."
+            )
+
         if self.profile.allow_all:
             return
+
+        if self.profile.allowed_permissions and not (
+            set(spec.permissions) & self.profile.allowed_permissions
+        ):
+            raise PolicyViolationError(
+                f"Tool '{spec.name}' does not have an allowed permission under "
+                f"profile '{self.profile.name}'."
+            )
 
         if spec.name not in self.profile.allowed_tools:
             raise PolicyViolationError(
                 f"Tool '{spec.name}' is not allowed under profile '{self.profile.name}'."
             )
-

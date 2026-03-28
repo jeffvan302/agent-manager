@@ -7,6 +7,7 @@ import json
 import time
 import uuid
 from pathlib import Path
+from typing import Any
 
 from agent_manager.async_utils import run_sync
 from agent_manager.config import RuntimeConfig
@@ -41,6 +42,8 @@ class AgentLoop:
         tool_executor: ToolExecutor,
         context_pipeline: PreCallPipeline,
         checkpoints: CheckpointManager,
+        working_directory: str | Path | None = None,
+        tool_context_metadata: dict[str, Any] | None = None,
     ) -> None:
         self.config = config
         self.provider = provider
@@ -48,6 +51,10 @@ class AgentLoop:
         self.tool_executor = tool_executor
         self.context_pipeline = context_pipeline
         self.checkpoints = checkpoints
+        self.working_directory = str(
+            Path(working_directory or Path.cwd()).resolve(strict=False)
+        )
+        self.tool_context_metadata = dict(tool_context_metadata or {})
         self.logger = get_logger("runtime.loop")
         self._interrupt_requested = False
 
@@ -177,9 +184,6 @@ class AgentLoop:
                         )
                     try:
                         result = await self._execute_tool_call(call, state, deadline)
-                        consecutive_failures = 0
-                        state.metadata["consecutive_failures"] = 0
-                        state.metadata.pop("last_error", None)
                     except PolicyViolationError as exc:
                         state.metadata["last_error"] = str(exc)
                         events.append(
@@ -219,8 +223,16 @@ class AgentLoop:
                                 tool_results=tool_results,
                                 events=events,
                             )
-                        state.step_index += 1
-                        break
+                    if result.ok:
+                        consecutive_failures = 0
+                        state.metadata["consecutive_failures"] = 0
+                        state.metadata.pop("last_error", None)
+                    else:
+                        consecutive_failures = self._record_failure(
+                            state,
+                            RuntimeError(result.error or f"Tool '{result.tool_name}' failed."),
+                            events,
+                        )
                     tool_results.append(result.to_dict())
                     state.tool_observations.append(result.to_dict())
                     state.messages.append(
@@ -228,9 +240,22 @@ class AgentLoop:
                             role="tool",
                             name=result.tool_name,
                             content=self._stringify_tool_output(result),
-                            metadata={"tool_call_id": call.id},
+                            metadata={
+                                "tool_call_id": call.id,
+                                "is_error": not result.ok,
+                            },
                         )
                     )
+                    if not result.ok and (
+                        consecutive_failures >= self.config.runtime.max_consecutive_failures
+                    ):
+                        return self._stop(
+                            state,
+                            stop_reason="repeated_failure",
+                            last_result=last_result,
+                            tool_results=tool_results,
+                            events=events,
+                        )
                 else:
                     state.step_index += 1
                     continue
@@ -267,13 +292,21 @@ class AgentLoop:
             task_id=state.task_id,
             step_index=state.step_index,
             tool_call_id=call.id,
-            working_directory=str(Path.cwd()),
+            working_directory=self.working_directory,
+            metadata=dict(self.tool_context_metadata),
         )
         result = await self._execute_tool_with_timeout(call, context, deadline)
         result.metadata.setdefault("tool_call_id", call.id)
         return result
 
     def _stringify_tool_output(self, result: ToolResult) -> str:
+        if result.error:
+            payload = {
+                "ok": result.ok,
+                "output": result.output,
+                "error": result.error,
+            }
+            return json.dumps(payload, ensure_ascii=True)
         if isinstance(result.output, str):
             return result.output
         return json.dumps(result.output, ensure_ascii=True)

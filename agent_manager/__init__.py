@@ -1,8 +1,10 @@
 """Public package exports for agent_manager."""
 
 from agent_manager.config import LoggingConfig, ProviderConfig, RuntimeConfig, RuntimeLimits, load_config
+from agent_manager.memory import BaseRetriever, InMemoryKeywordRetriever, RetrievalResult
 from agent_manager.providers.factory import available_providers, build_provider, register_provider
 from agent_manager.runtime.session import AgentSession
+from agent_manager.tools import FunctionTool, default_builtin_tools, register_builtin_tools
 from agent_manager.tools.base import BaseTool, ToolContext, ToolResult, ToolSpec
 from agent_manager.tools.registry import ToolRegistry
 from agent_manager.types import (
@@ -22,14 +24,18 @@ __all__ = [
     "AgentRunResult",
     "AgentSession",
     "BaseTool",
+    "BaseRetriever",
     "ContextHint",
     "ContextSection",
+    "FunctionTool",
+    "InMemoryKeywordRetriever",
     "LoggingConfig",
     "LoopState",
     "Message",
     "ProviderConfig",
     "ProviderRequest",
     "ProviderResult",
+    "RetrievalResult",
     "RuntimeConfig",
     "RuntimeLimits",
     "ToolCallRequest",
@@ -39,7 +45,8 @@ __all__ = [
     "ToolSpec",
     "available_providers",
     "build_provider",
+    "default_builtin_tools",
     "load_config",
+    "register_builtin_tools",
     "register_provider",
 ]
-
