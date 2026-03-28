@@ -6,7 +6,9 @@ from pathlib import Path
 from typing import Any
 
 from agent_manager.config import RuntimeConfig, load_config
+from agent_manager.context.functions import PreCallFunction
 from agent_manager.context.pipeline import PreCallPipeline
+from agent_manager.memory.base import BaseMemoryStore
 from agent_manager.memory.retrieval import BaseRetriever
 from agent_manager.observability import configure_logging, get_logger
 from agent_manager.providers.base import BaseProvider
@@ -32,9 +34,12 @@ class AgentSession:
         tools: ToolRegistry | None = None,
         state_store: StateStore | None = None,
         retriever: BaseRetriever | None = None,
+        memory_store: BaseMemoryStore | None = None,
         include_builtin_tools: bool = True,
         working_directory: str | Path | None = None,
         tool_context_metadata: dict[str, Any] | None = None,
+        context_pipeline: PreCallPipeline | None = None,
+        pre_call_functions: dict[str, PreCallFunction] | None = None,
     ) -> None:
         self.config = config or load_config()
         configure_logging(
@@ -60,7 +65,16 @@ class AgentSession:
             self.config.resolved_state_dir()
         )
         self.checkpoints = CheckpointManager(self.state_store)
-        self.context_pipeline = PreCallPipeline()
+        self.retriever = retriever
+        self.memory_store = memory_store
+        self.context_pipeline = context_pipeline or PreCallPipeline(
+            retriever=retriever,
+            memory_store=memory_store,
+            custom_functions=pre_call_functions,
+        )
+        if context_pipeline is not None and pre_call_functions:
+            for name, fn in pre_call_functions.items():
+                self.context_pipeline.register_function(name, fn)
         self.loop = AgentLoop(
             config=self.config,
             provider=self.provider,

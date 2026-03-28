@@ -232,6 +232,10 @@ The framework must treat context as an explicitly assembled object, not an impli
 ### Requirements
 - context assembly must be modular and inspectable
 - each context section should be attributable and optionally logged
+- pre-call context preparation must support a configurable pipeline of named functions/steps
+- the runtime must include standard context-distillation functions such as recent-history selection, summary generation, retrieval injection, and token-budget fitting
+- applications must be able to register custom pre-call context functions without modifying the core loop
+- the active pre-call functions should be selectable by configuration so different runtime profiles can use different context preparation behavior
 - the runtime must support:
   - sliding windows
   - summarization
@@ -245,6 +249,17 @@ The framework must treat context as an explicitly assembled object, not an impli
 - truncate or compress when needed
 - preserve high-priority instructions under pressure
 - keep tool results separate from user-visible output
+- allow custom context-distillation hooks to add, remove, transform, or reorder context sections before the provider call
+
+### Example pre-call pipeline contract
+
+```python
+class PreCallContextStep:
+    name: str
+
+    async def run(self, state, prepared_context, config):
+        ...
+```
 
 ---
 

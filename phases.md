@@ -558,6 +558,8 @@ This is where the runtime becomes more than a chat wrapper. It begins to manage 
 - retrieval injection
 - working memory updates
 - checkpoint-aware loop preparation
+- configurable pre-call function selection
+- custom context-distillation function registration
 
 ### Recommended design
 
@@ -572,8 +574,15 @@ class PreparedTurn(BaseModel):
 
 
 class PreCallStep(ABC):
+    name: str
+
     @abstractmethod
-    async def run(self, state: LoopState, config) -> LoopState:
+    async def run(
+        self,
+        state: LoopState,
+        prepared: PreparedTurn,
+        config,
+    ) -> PreparedTurn:
         raise NotImplementedError
 
 
@@ -594,15 +603,103 @@ class ContextAssembler:
         )
 ```
 
+### Configurable pre-call functions
+
+Phase 4 should let the caller define which named functions run before each provider call. The runtime should ship with a small standard library of context functions, but it should also allow projects to register their own functions for custom context distillation without editing the loop.
+
+Recommended built-in function names:
+
+- `collect_recent_messages`
+- `summarize_history`
+- `inject_retrieval`
+- `inject_memory_facts`
+- `apply_token_budget`
+- `finalize_messages`
+
+Recommended contract:
+
+```python
+from collections.abc import Awaitable, Callable
+
+
+PreCallFunction = Callable[
+    [LoopState, PreparedTurn, RuntimeConfig],
+    PreparedTurn | Awaitable[PreparedTurn],
+]
+
+
+class PreCallFunctionRegistry:
+    def __init__(self) -> None:
+        self._functions: dict[str, PreCallFunction] = {}
+
+    def register(self, name: str, fn: PreCallFunction) -> None:
+        self._functions[name] = fn
+
+    def resolve(self, names: list[str]) -> list[PreCallFunction]:
+        return [self._functions[name] for name in names]
+```
+
+This keeps the loop stable while allowing a project to swap distillation behavior by configuration instead of branching runtime code.
+
+### Example configuration shape
+
+This does not need to be implemented as TOML specifically, but the runtime should support a config-driven way to choose standard functions and add custom ones.
+
+```toml
+[context]
+pre_call_functions = [
+  "collect_recent_messages",
+  "summarize_history",
+  "inject_retrieval",
+  "apply_token_budget",
+  "finalize_messages",
+]
+```
+
+### Custom function example
+
+Projects should be able to register a custom function for domain-specific context distillation, such as selecting active files, surfacing repository conventions, or compressing prior tool output.
+
+```python
+async def inject_active_files(
+    state: LoopState,
+    prepared: PreparedTurn,
+    config: RuntimeConfig,
+) -> PreparedTurn:
+    section = ContextSection(
+        key="active_files",
+        title="Active Files",
+        content="\n".join(state.metadata.get("active_files", [])),
+        priority=70,
+    )
+    prepared.sections.append(section)
+    return prepared
+
+
+registry.register("inject_active_files", inject_active_files)
+```
+
+### Standard function responsibilities
+
+The built-in functions should have clear, narrow jobs so custom functions can be inserted cleanly:
+
+- `collect_recent_messages`: select the recent sliding-window messages and attach them as candidate sections
+- `summarize_history`: summarize older messages when history exceeds configured thresholds
+- `inject_retrieval`: pull in optional retrieval matches or document chunks
+- `inject_memory_facts`: attach relevant long-term memory or stable task facts
+- `apply_token_budget`: estimate tokens, rank sections, and drop or compress lower-priority sections
+- `finalize_messages`: render the chosen sections into the provider-facing message list
+
 ### Suggested pre-call pipeline
 
 1. load checkpoint/state
-2. refresh short-term memory view
-3. fetch long-term memory or retrieval matches
-4. summarize older history if over threshold
-5. assemble context sections by priority
-6. estimate tokens and trim to budget
-7. persist "prepared" state before provider call
+2. resolve the configured pre-call function list
+3. refresh short-term memory view
+4. fetch long-term memory or retrieval matches
+5. summarize older history if over threshold
+6. assemble context sections by priority
+7. estimate tokens and trim to budget
+8. persist "prepared" state before provider call
 
 ### Context section examples
 
@@ -648,9 +745,29 @@ async def run_step(self, state: LoopState) -> LoopState:
     return await self._handle_provider_result(state, result)
 ```
 
+### Registry-driven pipeline example
+
+```python
+class ContextPipeline:
+    def __init__(
+        self,
+        registry: PreCallFunctionRegistry,
+        configured_steps: list[str],
+    ) -> None:
+        self.steps = registry.resolve(configured_steps)
+
+    async def prepare(self, state: LoopState, config: RuntimeConfig) -> PreparedTurn:
+        prepared = PreparedTurn(messages=[], sections=[], token_estimate=0)
+        for step in self.steps:
+            prepared = await step(state, prepared, config)
+        return prepared
+```
+
 ### Phase 4 exit criteria
 
 - context is assembled by explicit pipeline steps
+- the active pre-call functions are configurable by name
+- custom context-distillation functions can be registered without loop changes
 - summaries and retrieval can be injected before a provider call
 - loop iterations can carry forward context in a controlled way
 - the runtime can prune or compress state when token pressure increases

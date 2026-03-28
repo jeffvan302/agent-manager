@@ -30,6 +30,10 @@ def _parse_float(value: str, field_name: str) -> float:
         raise ConfigurationError(f"Invalid number for {field_name}: {value}") from exc
 
 
+def _parse_csv_list(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
 @dataclass(slots=True)
 class ProviderConfig:
     name: str = "echo"
@@ -85,10 +89,45 @@ class LoggingConfig:
 
 
 @dataclass(slots=True)
+class ContextConfig:
+    history_window: int = 8
+    summary_trigger_messages: int = 8
+    retrieval_top_k: int = 3
+    max_memory_facts: int = 5
+    pre_call_functions: list[str] = field(
+        default_factory=lambda: [
+            "collect_recent_messages",
+            "summarize_history",
+            "inject_retrieval",
+            "inject_memory_facts",
+            "apply_token_budget",
+            "finalize_messages",
+        ]
+    )
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any] | None) -> "ContextConfig":
+        data = data or {}
+        raw_functions = data.get("pre_call_functions")
+        if isinstance(raw_functions, list):
+            pre_call_functions = [str(item) for item in raw_functions if str(item).strip()]
+        else:
+            pre_call_functions = cls().pre_call_functions
+        return cls(
+            history_window=int(data.get("history_window", 8)),
+            summary_trigger_messages=int(data.get("summary_trigger_messages", 8)),
+            retrieval_top_k=int(data.get("retrieval_top_k", 3)),
+            max_memory_facts=int(data.get("max_memory_facts", 5)),
+            pre_call_functions=pre_call_functions,
+        )
+
+
+@dataclass(slots=True)
 class RuntimeConfig:
     provider: ProviderConfig = field(default_factory=ProviderConfig)
     runtime: RuntimeLimits = field(default_factory=RuntimeLimits)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+    context: ContextConfig = field(default_factory=ContextConfig)
     profile: str = "readonly"
     system_prompt: str = "You are a helpful local-first agent runtime."
     state_dir: str = ".agent_manager/state"
@@ -101,6 +140,7 @@ class RuntimeConfig:
             provider=ProviderConfig.from_dict(data.get("provider")),
             runtime=RuntimeLimits.from_dict(data.get("runtime")),
             logging=LoggingConfig.from_dict(data.get("logging")),
+            context=ContextConfig.from_dict(data.get("context")),
             profile=str(data.get("profile", "readonly")),
             system_prompt=str(
                 data.get("system_prompt", "You are a helpful local-first agent runtime.")
@@ -187,6 +227,30 @@ class RuntimeConfig:
             self.logging.level = env[f"{prefix}LOG_LEVEL"]
         if f"{prefix}LOG_JSON" in env:
             self.logging.json_output = _parse_bool(env[f"{prefix}LOG_JSON"])
+        if f"{prefix}CONTEXT_HISTORY_WINDOW" in env:
+            self.context.history_window = _parse_int(
+                env[f"{prefix}CONTEXT_HISTORY_WINDOW"],
+                "CONTEXT_HISTORY_WINDOW",
+            )
+        if f"{prefix}CONTEXT_SUMMARY_TRIGGER_MESSAGES" in env:
+            self.context.summary_trigger_messages = _parse_int(
+                env[f"{prefix}CONTEXT_SUMMARY_TRIGGER_MESSAGES"],
+                "CONTEXT_SUMMARY_TRIGGER_MESSAGES",
+            )
+        if f"{prefix}CONTEXT_RETRIEVAL_TOP_K" in env:
+            self.context.retrieval_top_k = _parse_int(
+                env[f"{prefix}CONTEXT_RETRIEVAL_TOP_K"],
+                "CONTEXT_RETRIEVAL_TOP_K",
+            )
+        if f"{prefix}CONTEXT_MAX_MEMORY_FACTS" in env:
+            self.context.max_memory_facts = _parse_int(
+                env[f"{prefix}CONTEXT_MAX_MEMORY_FACTS"],
+                "CONTEXT_MAX_MEMORY_FACTS",
+            )
+        if f"{prefix}CONTEXT_PRE_CALL_FUNCTIONS" in env:
+            self.context.pre_call_functions = _parse_csv_list(
+                env[f"{prefix}CONTEXT_PRE_CALL_FUNCTIONS"]
+            )
 
     def resolved_state_dir(self, base_path: str | Path | None = None) -> Path:
         path = Path(self.state_dir)

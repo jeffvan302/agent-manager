@@ -91,7 +91,17 @@ class AgentLoop:
                 )
 
             self.checkpoints.save(state)
-            prepared = self.context_pipeline.prepare(state, self.config)
+            prepared = await self.context_pipeline.prepare_async(state, self.config)
+            state.metadata["prepared_context"] = {
+                "sections": [section.key for section in prepared.sections],
+                "dropped_sections": list(prepared.dropped_sections),
+                "token_estimate": prepared.token_estimate,
+                "pre_call_functions": list(
+                    prepared.metadata.get("pre_call_functions", [])
+                ),
+                "executed_steps": list(prepared.metadata.get("executed_steps", [])),
+            }
+            self.checkpoints.save(state)
             events.append(
                 RuntimeEvent(
                     "context.prepared",
@@ -99,6 +109,7 @@ class AgentLoop:
                         "task_id": state.task_id,
                         "step_index": state.step_index,
                         "token_estimate": prepared.token_estimate,
+                        "sections": [section.key for section in prepared.sections],
                         "dropped_sections": list(prepared.dropped_sections),
                     },
                 )

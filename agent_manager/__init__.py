@@ -1,6 +1,14 @@
 """Public package exports for agent_manager."""
 
-from agent_manager.config import LoggingConfig, ProviderConfig, RuntimeConfig, RuntimeLimits, load_config
+from agent_manager.config import (
+    ContextConfig,
+    LoggingConfig,
+    ProviderConfig,
+    RuntimeConfig,
+    RuntimeLimits,
+    load_config,
+)
+from agent_manager.context import PreCallFunctionRegistry, PreCallPipeline
 from agent_manager.memory import BaseRetriever, InMemoryKeywordRetriever, RetrievalResult
 from agent_manager.providers.factory import available_providers, build_provider, register_provider
 from agent_manager.runtime.session import AgentSession
@@ -25,6 +33,7 @@ __all__ = [
     "AgentSession",
     "BaseTool",
     "BaseRetriever",
+    "ContextConfig",
     "ContextHint",
     "ContextSection",
     "FunctionTool",
@@ -35,6 +44,8 @@ __all__ = [
     "ProviderConfig",
     "ProviderRequest",
     "ProviderResult",
+    "PreCallFunctionRegistry",
+    "PreCallPipeline",
     "RetrievalResult",
     "RuntimeConfig",
     "RuntimeLimits",
