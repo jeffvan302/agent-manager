@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-manager"
+version = "0.1.0"
+description = "Local-first, provider-agnostic Python agent runtime foundation."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [
+  { name = "Theunis van Niekerk" }
+]
+keywords = ["agents", "llm", "runtime", "orchestrator", "tools"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: OS Independent",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = []
+
+[project.optional-dependencies]
+openai = ["openai"]
+anthropic = ["anthropic"]
+local-providers = ["httpx"]
+retrieval = []
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+agent-manager = "agent_manager.cli.main:main"
+
+[tool.setuptools.packages.find]
+include = ["agent_manager*"]
+

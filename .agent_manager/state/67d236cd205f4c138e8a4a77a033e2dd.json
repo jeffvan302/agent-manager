@@ -1,0 +1,25 @@
+{
+  "task_id": "67d236cd205f4c138e8a4a77a033e2dd",
+  "goal": "Async-aligned CLI smoke test",
+  "step_index": 1,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Async-aligned CLI smoke test",
+      "name": null,
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "Async-aligned CLI smoke test",
+      "name": null,
+      "metadata": {
+        "stop_reason": "completed"
+      }
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [],
+  "status": "completed",
+  "metadata": {}
+}

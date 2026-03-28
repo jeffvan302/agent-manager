@@ -1,0 +1,25 @@
+{
+  "task_id": "02dfb5f701bc4cc08ac03322e7e16cfb",
+  "goal": "Follow-up review smoke test",
+  "step_index": 1,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Follow-up review smoke test",
+      "name": null,
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "Follow-up review smoke test",
+      "name": null,
+      "metadata": {
+        "stop_reason": "completed"
+      }
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [],
+  "status": "completed",
+  "metadata": {}
+}

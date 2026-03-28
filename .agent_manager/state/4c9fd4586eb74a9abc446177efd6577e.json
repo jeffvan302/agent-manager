@@ -1,0 +1,25 @@
+{
+  "task_id": "4c9fd4586eb74a9abc446177efd6577e",
+  "goal": "Phase 1 CLI smoke test",
+  "step_index": 1,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Phase 1 CLI smoke test",
+      "name": null,
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "Phase 1 CLI smoke test",
+      "name": null,
+      "metadata": {
+        "stop_reason": "completed"
+      }
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [],
+  "status": "completed",
+  "metadata": {}
+}

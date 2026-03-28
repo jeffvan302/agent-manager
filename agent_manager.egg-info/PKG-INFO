@@ -1,0 +1,88 @@
+Metadata-Version: 2.4
+Name: agent-manager
+Version: 0.1.0
+Summary: Local-first, provider-agnostic Python agent runtime foundation.
+Author: Theunis van Niekerk
+License: Proprietary
+Keywords: agents,llm,runtime,orchestrator,tools
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Operating System :: OS Independent
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Provides-Extra: openai
+Requires-Dist: openai; extra == "openai"
+Provides-Extra: anthropic
+Requires-Dist: anthropic; extra == "anthropic"
+Provides-Extra: local-providers
+Requires-Dist: httpx; extra == "local-providers"
+Provides-Extra: retrieval
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+
+# agent-manager
+
+`agent-manager` is a local-first Python agent runtime foundation designed to grow into a reusable library, a headless local service, and a CLI entry point.
+
+Phase 1 establishes the deployable package structure and a minimal runnable core:
+
+- reusable `agent_manager` Python package
+- config loading from environment variables and JSON/TOML files
+- shared types for messages, tool calls, context, and loop state
+- provider factory with a built-in `echo` provider for smoke testing
+- tool registry, policy layer, and executor skeleton
+- minimal runtime session and loop
+- state/checkpoint storage primitives
+- CLI entry point
+
+## Install
+
+```bash
+pip install -e .
+```
+
+## Quick Start
+
+```python
+from agent_manager import AgentSession, RuntimeConfig
+
+session = AgentSession(config=RuntimeConfig.from_env())
+result = session.run("Summarize the goals of this project.")
+
+print(result.output_text)
+```
+
+The default provider in Phase 1 is `echo`, which allows the runtime shell to work before cloud or local model adapters are implemented.
+
+## CLI
+
+```bash
+agent-manager "Plan the next implementation step."
+```
+
+Optional configuration can be supplied with `--config path/to/config.toml`.
+
+## Package Layout
+
+```text
+agent_manager/
+  providers/
+  tools/
+  context/
+  memory/
+  state/
+  runtime/
+  plugins/
+  api/
+  cli/
+```
+
+## Phase 1 Notes
+
+- provider wrappers for OpenAI, Anthropic, Gemini, Ollama, and LM Studio are scaffolded but not implemented yet
+- the tool and context systems are intentionally lightweight so later phases can extend them without breaking the package surface
+- the runtime currently favors standard-library components to keep the foundation easy to install
+

@@ -1,0 +1,15 @@
+
+[anthropic]
+anthropic
+
+[dev]
+pytest
+ruff
+
+[local-providers]
+httpx
+
+[openai]
+openai
+
+[retrieval]
