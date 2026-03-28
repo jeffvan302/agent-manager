@@ -23,6 +23,13 @@ def _parse_int(value: str, field_name: str) -> int:
         raise ConfigurationError(f"Invalid integer for {field_name}: {value}") from exc
 
 
+def _parse_float(value: str, field_name: str) -> float:
+    try:
+        return float(value)
+    except ValueError as exc:
+        raise ConfigurationError(f"Invalid number for {field_name}: {value}") from exc
+
+
 @dataclass(slots=True)
 class ProviderConfig:
     name: str = "echo"
@@ -46,7 +53,7 @@ class ProviderConfig:
 @dataclass(slots=True)
 class RuntimeLimits:
     max_steps: int = 6
-    timeout_seconds: int = 300
+    timeout_seconds: float = 300.0
     max_consecutive_failures: int = 3
     max_context_tokens: int = 8192
     max_output_tokens: int = 1024
@@ -56,7 +63,7 @@ class RuntimeLimits:
         data = data or {}
         return cls(
             max_steps=int(data.get("max_steps", 6)),
-            timeout_seconds=int(data.get("timeout_seconds", 300)),
+            timeout_seconds=float(data.get("timeout_seconds", 300.0)),
             max_consecutive_failures=int(data.get("max_consecutive_failures", 3)),
             max_context_tokens=int(data.get("max_context_tokens", 8192)),
             max_output_tokens=int(data.get("max_output_tokens", 1024)),
@@ -157,7 +164,7 @@ class RuntimeConfig:
         if f"{prefix}MAX_STEPS" in env:
             self.runtime.max_steps = _parse_int(env[f"{prefix}MAX_STEPS"], "MAX_STEPS")
         if f"{prefix}TIMEOUT_SECONDS" in env:
-            self.runtime.timeout_seconds = _parse_int(
+            self.runtime.timeout_seconds = _parse_float(
                 env[f"{prefix}TIMEOUT_SECONDS"],
                 "TIMEOUT_SECONDS",
             )

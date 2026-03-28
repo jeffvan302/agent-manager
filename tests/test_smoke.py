@@ -29,12 +29,37 @@ class CaptureTool(BaseTool):
         description="Capture the tool context for testing.",
     )
 
-    def invoke(self, arguments: dict, context: ToolContext) -> ToolResult:
+    async def invoke(self, arguments: dict, context: ToolContext) -> ToolResult:
         return ToolResult(
             tool_name=self.spec.name,
             ok=True,
             output={"arguments": arguments, "tool_call_id": context.tool_call_id},
         )
+
+
+class SlowTool(BaseTool):
+    spec = ToolSpec(
+        name="slow_tool",
+        description="Sleep longer than the configured timeout.",
+        timeout_seconds=0.01,
+    )
+
+    async def invoke(self, arguments: dict, context: ToolContext) -> ToolResult:
+        del arguments, context
+        await asyncio.sleep(0.05)
+        return ToolResult(tool_name=self.spec.name, ok=True, output={"done": True})
+
+
+class BlockedTool(BaseTool):
+    spec = ToolSpec(
+        name="blocked_tool",
+        description="A tool blocked by the readonly profile.",
+        tags=["shell"],
+    )
+
+    async def invoke(self, arguments: dict, context: ToolContext) -> ToolResult:
+        del arguments, context
+        return ToolResult(tool_name=self.spec.name, ok=True, output={"done": True})
 
 
 class ToolCallingProvider(BaseProvider):
@@ -59,6 +84,48 @@ class ToolCallingProvider(BaseProvider):
                 stop_reason="tool_call",
             )
         return ProviderResult(text="done", stop_reason="completed")
+
+
+class SingleToolCallProvider(BaseProvider):
+    provider_name = "single-tool-caller"
+
+    def __init__(self, tool_name: str) -> None:
+        super().__init__()
+        self.tool_name = tool_name
+        self._calls = 0
+
+    async def generate(self, request: ProviderRequest) -> ProviderResult:
+        del request
+        if self._calls == 0:
+            self._calls += 1
+            return ProviderResult(
+                tool_calls=[
+                    ToolCallRequest(
+                        id=f"{self.tool_name}-call-1",
+                        name=self.tool_name,
+                        arguments={},
+                    )
+                ],
+                stop_reason="tool_call",
+            )
+        return ProviderResult(text="done", stop_reason="completed")
+
+
+class SlowProvider(BaseProvider):
+    provider_name = "slow-provider"
+
+    async def generate(self, request: ProviderRequest) -> ProviderResult:
+        del request
+        await asyncio.sleep(0.05)
+        return ProviderResult(text="too slow", stop_reason="completed")
+
+
+class FailingProvider(BaseProvider):
+    provider_name = "failing-provider"
+
+    async def generate(self, request: ProviderRequest) -> ProviderResult:
+        del request
+        raise RuntimeError("provider boom")
 
 
 class SmokeTests(unittest.TestCase):
@@ -173,6 +240,89 @@ class SmokeTests(unittest.TestCase):
         self.assertNotIn("..", files[0].name)
         self.assertNotIn("/", files[0].name)
         self.assertNotIn("\\", files[0].name)
+
+    def test_provider_timeout_stops_cleanly(self) -> None:
+        temp_dir = make_workspace_temp_dir()
+        try:
+            config = RuntimeConfig.from_dict(
+                {
+                    "state_dir": str(temp_dir),
+                    "runtime": {"timeout_seconds": 0.01, "max_steps": 2},
+                }
+            )
+            session = AgentSession(config=config, provider=SlowProvider())
+            result = session.run("timeout test")
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+        self.assertEqual(result.stop_reason, "timeout")
+        self.assertEqual(result.state.status, "timeout")
+
+    def test_policy_violation_stops_cleanly(self) -> None:
+        temp_dir = make_workspace_temp_dir()
+        try:
+            config = RuntimeConfig.from_dict(
+                {
+                    "state_dir": str(temp_dir),
+                    "profile": "readonly",
+                    "runtime": {"max_steps": 2},
+                }
+            )
+            tools = ToolRegistry([BlockedTool()])
+            session = AgentSession(
+                config=config,
+                provider=SingleToolCallProvider("blocked_tool"),
+                tools=tools,
+            )
+            result = session.run("policy test")
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+        self.assertEqual(result.stop_reason, "policy_violation")
+        self.assertEqual(result.state.status, "policy_violation")
+
+    def test_repeated_failure_stops_cleanly(self) -> None:
+        temp_dir = make_workspace_temp_dir()
+        try:
+            config = RuntimeConfig.from_dict(
+                {
+                    "state_dir": str(temp_dir),
+                    "runtime": {
+                        "max_steps": 5,
+                        "max_consecutive_failures": 2,
+                    },
+                }
+            )
+            session = AgentSession(config=config, provider=FailingProvider())
+            result = session.run("failure test")
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+        self.assertEqual(result.stop_reason, "repeated_failure")
+        self.assertEqual(result.state.status, "repeated_failure")
+        self.assertEqual(result.state.metadata["consecutive_failures"], 2)
+
+    def test_tool_timeout_stops_cleanly(self) -> None:
+        temp_dir = make_workspace_temp_dir()
+        try:
+            config = RuntimeConfig.from_dict(
+                {
+                    "state_dir": str(temp_dir),
+                    "runtime": {"timeout_seconds": 2, "max_steps": 2},
+                }
+            )
+            tools = ToolRegistry([SlowTool()])
+            session = AgentSession(
+                config=config,
+                provider=SingleToolCallProvider("slow_tool"),
+                tools=tools,
+            )
+            result = session.run("tool timeout test")
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+        self.assertEqual(result.stop_reason, "timeout")
+        self.assertEqual(result.state.status, "timeout")
 
 
 if __name__ == "__main__":

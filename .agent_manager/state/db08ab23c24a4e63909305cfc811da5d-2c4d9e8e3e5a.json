@@ -1,0 +1,27 @@
+{
+  "task_id": "db08ab23c24a4e63909305cfc811da5d",
+  "goal": "Stop-condition smoke test",
+  "step_index": 1,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Stop-condition smoke test",
+      "name": null,
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "Stop-condition smoke test",
+      "name": null,
+      "metadata": {
+        "stop_reason": "completed"
+      }
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [],
+  "status": "completed",
+  "metadata": {
+    "consecutive_failures": 0
+  }
+}

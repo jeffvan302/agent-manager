@@ -243,6 +243,7 @@ class AgentLoop:
                 last_result=last_result,
                 tool_results=tool_results,
                 events=events,
+                advance_step=True,
             )
 
         return self._stop(
@@ -355,8 +356,10 @@ class AgentLoop:
         last_result: ProviderResult,
         tool_results: list[dict],
         events: list[RuntimeEvent],
+        advance_step: bool = False,
     ) -> AgentRunResult:
-        state.step_index += 1
+        if advance_step:
+            state.step_index += 1
         state.status = stop_reason
         self.checkpoints.save(state)
         events.append(

@@ -14,7 +14,7 @@ class ToolSpec:
     input_schema: dict[str, Any] = field(default_factory=dict)
     output_schema: dict[str, Any] | None = None
     tags: list[str] = field(default_factory=list)
-    timeout_seconds: int = 60
+    timeout_seconds: float = 60.0
     retry_count: int = 0
 
     def to_dict(self) -> dict[str, Any]:

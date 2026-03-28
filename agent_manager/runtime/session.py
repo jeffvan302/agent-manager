@@ -68,6 +68,9 @@ class AgentSession:
     def resume(self, task_id: str) -> AgentRunResult:
         return self.loop.run_state(self._load_state(task_id))
 
+    def request_interrupt(self) -> None:
+        self.loop.request_interrupt()
+
     def _load_state(self, task_id: str):
         state = self.checkpoints.load(task_id)
         if state is None:
