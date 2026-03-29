@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import json
 import os
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib  # type: ignore[no-redefine]
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
@@ -52,6 +55,26 @@ class ProviderConfig:
             api_key_env=data.get("api_key_env"),
             settings=dict(data.get("settings", {})),
         )
+
+    def resolved_max_context_tokens(self, fallback: int) -> int:
+        value = (
+            self.settings.get("model_context_tokens")
+            or self.settings.get("context_window")
+            or self.settings.get("max_context_tokens")
+        )
+        return int(value) if value is not None else fallback
+
+    def resolved_max_output_tokens(self, fallback: int) -> int:
+        value = (
+            self.settings.get("model_max_output_tokens")
+            or self.settings.get("max_output_tokens")
+            or self.settings.get("output_limit")
+        )
+        return int(value) if value is not None else fallback
+
+    def resolved_token_counter_chars_per_token(self, fallback: float = 4.0) -> float:
+        value = self.settings.get("token_counter_chars_per_token")
+        return float(value) if value is not None else fallback
 
 
 @dataclass(slots=True)
@@ -130,6 +153,8 @@ class RuntimeConfig:
     context: ContextConfig = field(default_factory=ContextConfig)
     profile: str = "readonly"
     system_prompt: str = "You are a helpful local-first agent runtime."
+    state_backend: str = "sqlite"
+    state_path: str = ".agent_manager/state.sqlite3"
     state_dir: str = ".agent_manager/state"
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -145,6 +170,8 @@ class RuntimeConfig:
             system_prompt=str(
                 data.get("system_prompt", "You are a helpful local-first agent runtime.")
             ),
+            state_backend=str(data.get("state_backend", "sqlite")).lower(),
+            state_path=str(data.get("state_path", ".agent_manager/state.sqlite3")),
             state_dir=str(data.get("state_dir", ".agent_manager/state")),
             extra=dict(data.get("extra", {})),
         )
@@ -201,6 +228,10 @@ class RuntimeConfig:
             self.system_prompt = env[f"{prefix}SYSTEM_PROMPT"]
         if f"{prefix}STATE_DIR" in env:
             self.state_dir = env[f"{prefix}STATE_DIR"]
+        if f"{prefix}STATE_BACKEND" in env:
+            self.state_backend = env[f"{prefix}STATE_BACKEND"].strip().lower()
+        if f"{prefix}STATE_PATH" in env:
+            self.state_path = env[f"{prefix}STATE_PATH"]
         if f"{prefix}MAX_STEPS" in env:
             self.runtime.max_steps = _parse_int(env[f"{prefix}MAX_STEPS"], "MAX_STEPS")
         if f"{prefix}TIMEOUT_SECONDS" in env:
@@ -259,6 +290,28 @@ class RuntimeConfig:
         if base_path is None:
             base_path = Path.cwd()
         return Path(base_path) / path
+
+    def resolved_state_path(self, base_path: str | Path | None = None) -> Path:
+        if (
+            self.state_path == ".agent_manager/state.sqlite3"
+            and self.state_dir != ".agent_manager/state"
+        ):
+            path = Path(self.state_dir) / "checkpoints.sqlite3"
+        else:
+            path = Path(self.state_path)
+        if path.is_absolute():
+            return path
+        if base_path is None:
+            base_path = Path.cwd()
+        return Path(base_path) / path
+
+    def resolved_checkpoint_backend(self) -> str:
+        backend = self.state_backend.strip().lower()
+        if backend not in {"sqlite", "json"}:
+            raise ConfigurationError(
+                f"Unsupported state backend '{self.state_backend}'. Use 'sqlite' or 'json'."
+            )
+        return backend
 
 
 def load_config(path: str | Path | None = None, *, prefix: str = "AGENT_MANAGER_") -> RuntimeConfig:

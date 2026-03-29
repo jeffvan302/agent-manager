@@ -131,6 +131,8 @@ The framework must provide a provider interface that normalizes:
 - providers must be swappable without changing orchestrator logic
 - provider responses must be converted into a normalized internal format
 - provider-specific quirks must be isolated inside adapter modules
+- provider adapters must detect and surface out-of-resource conditions such as exhausted API-key quota/credits, rate-limit exhaustion, or model-capacity exhaustion
+- out-of-resource conditions should be exposed to the runtime and caller as clear structured failures or notifications rather than generic provider errors
 
 ### Example normalized response model
 
@@ -437,6 +439,8 @@ The system must be configurable by file and environment variables.
 
 ## 7.4 Reliability
 - transient provider failures should be retryable
+- provider quota/capacity exhaustion should be classified distinctly from transient failures and should notify the caller clearly
+- when a provider indicates that a request failed because the model or API key is out of resources, the runtime should preserve any retry-after or quota metadata that can help the caller decide what to do next
 - tool crashes should be isolated and reported cleanly
 - checkpoints should reduce loss during interruption
 

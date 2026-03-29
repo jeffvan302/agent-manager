@@ -134,7 +134,7 @@ async def apply_token_budget(
     runtime: PreCallRuntime,
 ) -> PreparedTurn:
     del state
-    prepared.sections = runtime.assembler.with_estimates(prepared.sections)
+    prepared.sections = runtime.assembler.with_estimates(prepared.sections, config)
     prepared.sections, prepared.dropped_sections = runtime.assembler.fit_sections_to_budget(
         prepared.sections,
         config,

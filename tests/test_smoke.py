@@ -7,6 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from agent_manager import AgentSession, RuntimeConfig
+from agent_manager.errors import ProviderResourceExhaustedError
 from agent_manager.providers.base import BaseProvider
 from agent_manager.providers.factory import available_providers, build_provider
 from agent_manager.state.store import JsonFileStateStore
@@ -126,6 +127,22 @@ class FailingProvider(BaseProvider):
     async def generate(self, request: ProviderRequest) -> ProviderResult:
         del request
         raise RuntimeError("provider boom")
+
+
+class ResourceExhaustedProvider(BaseProvider):
+    """Provider that raises a resource exhaustion error on the first call."""
+
+    provider_name = "resource-exhausted-provider"
+
+    async def generate(self, request: ProviderRequest) -> ProviderResult:
+        del request
+        raise ProviderResourceExhaustedError(
+            "Quota exceeded.",
+            provider="resource-exhausted-provider",
+            kind="quota_exhausted",
+            status_code=429,
+            retry_after_seconds=60.0,
+        )
 
 
 class SmokeTests(unittest.TestCase):
@@ -324,6 +341,36 @@ class SmokeTests(unittest.TestCase):
 
         self.assertEqual(result.stop_reason, "timeout")
         self.assertEqual(result.state.status, "timeout")
+
+    def test_resource_exhaustion_stops_cleanly(self) -> None:
+        """Verify that a provider resource exhaustion error stops the loop
+        with the correct stop_reason and exposes the error details."""
+        temp_dir = make_workspace_temp_dir()
+        try:
+            config = RuntimeConfig.from_dict(
+                {
+                    "state_dir": str(temp_dir),
+                    "runtime": {"max_steps": 3},
+                }
+            )
+            session = AgentSession(
+                config=config,
+                provider=ResourceExhaustedProvider(),
+            )
+            result = session.run("resource exhaustion test")
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+        self.assertEqual(result.stop_reason, "resource_exhausted")
+        self.assertEqual(result.state.status, "resource_exhausted")
+        self.assertIsNotNone(result.resource_exhaustion)
+        self.assertEqual(result.resource_exhaustion["kind"], "quota_exhausted")
+        self.assertEqual(result.resource_exhaustion["status_code"], 429)
+        self.assertEqual(result.resource_exhaustion["retry_after_seconds"], 60.0)
+        self.assertEqual(
+            result.resource_exhaustion["provider"],
+            "resource-exhausted-provider",
+        )
 
 
 if __name__ == "__main__":

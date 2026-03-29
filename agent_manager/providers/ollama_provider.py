@@ -13,6 +13,7 @@ from agent_manager.providers.base import (
     coerce_text,
     ensure_tool_call_id,
     message_tool_calls,
+    maybe_parse_structured_output,
 )
 from agent_manager.types import Message, ProviderRequest, ProviderResult, ToolCallRequest
 
@@ -23,14 +24,20 @@ class OllamaProvider(HTTPProvider):
     capabilities = ProviderCapabilities(
         supports_tools=True,
         supports_streaming=False,
-        supports_structured_output=False,
+        supports_structured_output=True,
         supports_system_messages=True,
     )
 
     async def generate(self, request: ProviderRequest) -> ProviderResult:
         payload = self._build_payload(request)
         response = await self._request_json("POST", "chat", payload=payload)
-        return self._parse_response(response)
+        result = self._parse_response(response)
+        if request.structured_output is not None:
+            result.structured_output = maybe_parse_structured_output(
+                result.text,
+                request.structured_output,
+            )
+        return result
 
     def _build_payload(self, request: ProviderRequest) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -40,6 +47,8 @@ class OllamaProvider(HTTPProvider):
         }
         if request.tools:
             payload["tools"] = [self._to_ollama_tool(tool) for tool in request.tools]
+        if request.structured_output is not None:
+            payload["format"] = request.structured_output.schema or "json"
         options: dict[str, Any] = {}
         if request.temperature is not None:
             options["temperature"] = request.temperature

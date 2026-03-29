@@ -19,9 +19,31 @@ Requires-Dist: anthropic; extra == "anthropic"
 Provides-Extra: local-providers
 Requires-Dist: httpx; extra == "local-providers"
 Provides-Extra: retrieval
+Provides-Extra: chroma
+Requires-Dist: chromadb; extra == "chroma"
+Provides-Extra: faiss
+Requires-Dist: faiss-cpu; extra == "faiss"
+Provides-Extra: pgvector
+Requires-Dist: psycopg2-binary; extra == "pgvector"
+Provides-Extra: embeddings
+Requires-Dist: sentence-transformers; extra == "embeddings"
+Provides-Extra: mcp
+Requires-Dist: mcp; extra == "mcp"
+Provides-Extra: langchain
+Requires-Dist: langchain-core; extra == "langchain"
+Provides-Extra: llamaindex
+Requires-Dist: llama-index-core; extra == "llamaindex"
 Provides-Extra: dev
 Requires-Dist: pytest; extra == "dev"
 Requires-Dist: ruff; extra == "dev"
+Provides-Extra: all
+Requires-Dist: openai; extra == "all"
+Requires-Dist: anthropic; extra == "all"
+Requires-Dist: httpx; extra == "all"
+Requires-Dist: chromadb; extra == "all"
+Requires-Dist: faiss-cpu; extra == "all"
+Requires-Dist: psycopg2-binary; extra == "all"
+Requires-Dist: sentence-transformers; extra == "all"
 
 # agent-manager
 

@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 from agent_manager.errors import PolicyViolationError
 from agent_manager.tools.base import ToolSpec
+
+ApprovalHook = Callable[[ToolSpec, Any | None, dict[str, Any] | None], "ApprovalDecision | bool | str"]
+
+
+@dataclass(slots=True)
+class ApprovalDecision:
+    approved: bool
+    reason: str | None = None
 
 
 @dataclass(slots=True)
@@ -32,11 +41,27 @@ DEFAULT_PROFILES: dict[str, ToolPolicyProfile] = {
     "unrestricted-lab": ToolPolicyProfile(name="unrestricted-lab", allow_all=True),
 }
 
+DEFAULT_APPROVAL_TAGS = {"write", "shell", "network", "database"}
+DEFAULT_APPROVAL_PERMISSIONS = {
+    "filesystem:write",
+    "process:execute",
+    "network:request",
+    "database:query",
+    "database:write",
+}
+
 
 class PolicyEngine:
     """Validate tool calls against a named policy profile."""
 
-    def __init__(self, profile: str | ToolPolicyProfile = "readonly") -> None:
+    def __init__(
+        self,
+        profile: str | ToolPolicyProfile = "readonly",
+        *,
+        approval_hook: ApprovalHook | None = None,
+        approval_tags: set[str] | None = None,
+        approval_permissions: set[str] | None = None,
+    ) -> None:
         if isinstance(profile, ToolPolicyProfile):
             self.profile = profile
         else:
@@ -44,6 +69,11 @@ class PolicyEngine:
                 profile,
                 ToolPolicyProfile(name=profile, allow_all=True),
             )
+        self.approval_hook = approval_hook
+        self.approval_tags = set(approval_tags or DEFAULT_APPROVAL_TAGS)
+        self.approval_permissions = set(
+            approval_permissions or DEFAULT_APPROVAL_PERMISSIONS
+        )
 
     def assert_allowed(
         self,
@@ -52,7 +82,6 @@ class PolicyEngine:
         context: Any | None = None,
         arguments: dict[str, Any] | None = None,
     ) -> None:
-        del context, arguments
         if spec.name in self.profile.denied_tools:
             raise PolicyViolationError(
                 f"Tool '{spec.name}' is blocked by profile '{self.profile.name}'."
@@ -72,6 +101,23 @@ class PolicyEngine:
                 f"{sorted(blocked_permissions)} under profile '{self.profile.name}'."
             )
 
+        if self.approval_hook is not None and self._requires_approval(spec):
+            decision = self.approval_hook(spec, context, arguments)
+            if isinstance(decision, ApprovalDecision):
+                approved = decision.approved
+                reason = decision.reason
+            elif isinstance(decision, bool):
+                approved = decision
+                reason = None
+            else:
+                approved = False
+                reason = str(decision)
+            if not approved:
+                raise PolicyViolationError(
+                    reason
+                    or f"Tool '{spec.name}' requires approval under profile '{self.profile.name}'."
+                )
+
         if self.profile.allow_all:
             return
 
@@ -87,3 +133,10 @@ class PolicyEngine:
             raise PolicyViolationError(
                 f"Tool '{spec.name}' is not allowed under profile '{self.profile.name}'."
             )
+
+    def _requires_approval(self, spec: ToolSpec) -> bool:
+        if set(spec.tags) & self.approval_tags:
+            return True
+        if set(spec.permissions) & self.approval_permissions:
+            return True
+        return False

@@ -65,7 +65,7 @@ class PreCallPipeline:
         if not prepared.messages:
             prepared = self.assembler.finalize_turn(state, prepared, config)
         elif prepared.token_estimate <= 0:
-            prepared.token_estimate = self.assembler.token_counter.count_messages(
+            prepared.token_estimate = self.assembler._token_counter_for(config).count_messages(
                 prepared.messages
             )
         return prepared

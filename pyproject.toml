@@ -27,7 +27,23 @@ openai = ["openai"]
 anthropic = ["anthropic"]
 local-providers = ["httpx"]
 retrieval = []
+chroma = ["chromadb"]
+faiss = ["faiss-cpu"]
+pgvector = ["psycopg2-binary"]
+embeddings = ["sentence-transformers"]
+mcp = ["mcp"]
+langchain = ["langchain-core"]
+llamaindex = ["llama-index-core"]
 dev = ["pytest", "ruff"]
+all = [
+  "openai",
+  "anthropic",
+  "httpx",
+  "chromadb",
+  "faiss-cpu",
+  "psycopg2-binary",
+  "sentence-transformers",
+]
 
 [project.scripts]
 agent-manager = "agent_manager.cli.main:main"

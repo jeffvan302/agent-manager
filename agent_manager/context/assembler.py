@@ -6,7 +6,11 @@ import asyncio
 from collections.abc import Iterable
 
 from agent_manager.config import RuntimeConfig
-from agent_manager.context.budget import SimpleTokenCounter, TokenBudget
+from agent_manager.context.budget import (
+    SimpleTokenCounter,
+    TokenBudget,
+    resolve_model_budget,
+)
 from agent_manager.context.sections import PreparedTurn
 from agent_manager.context.summarizer import SimpleSummarizer
 from agent_manager.memory.base import BaseMemoryStore
@@ -71,12 +75,13 @@ class ContextAssembler:
                 content=(
                     f"Profile: {config.profile}\n"
                     f"Step: {state.step_index}\n"
-                    f"Max output tokens: {config.runtime.max_output_tokens}"
+                    f"Max output tokens: {resolve_model_budget(config).max_output_tokens}\n"
+                    f"Model: {config.provider.name}/{config.provider.model}"
                 ),
                 priority=82,
             )
         )
-        return self.with_estimates(sections)
+        return self.with_estimates(sections, config)
 
     def build_recent_message_sections(
         self,
@@ -106,7 +111,7 @@ class ContextAssembler:
                     },
                 )
             )
-        return self.with_estimates(sections)
+        return self.with_estimates(sections, config)
 
     def build_summary_section(
         self,
@@ -120,7 +125,8 @@ class ContextAssembler:
                     title="Summary",
                     content="\n".join(state.summaries),
                     priority=80,
-                )
+                ),
+                config,
             )
 
         history_window = max(config.context.history_window, 0)
@@ -138,7 +144,8 @@ class ContextAssembler:
                 title="Summary",
                 content=summary,
                 priority=78,
-            )
+            ),
+            config,
         )
 
     async def build_retrieval_sections(
@@ -175,7 +182,7 @@ class ContextAssembler:
             )
             for index, result in enumerate(results, start=1)
         ]
-        return self.with_estimates(sections)
+        return self.with_estimates(sections, config)
 
     async def build_memory_sections(
         self,
@@ -209,16 +216,17 @@ class ContextAssembler:
             )
             for index, entry in enumerate(entries[: max(config.context.max_memory_facts, 0)], start=1)
         ]
-        return self.with_estimates(sections)
+        return self.with_estimates(sections, config)
 
     def fit_sections_to_budget(
         self,
         sections: list[ContextSection],
         config: RuntimeConfig,
     ) -> tuple[list[ContextSection], list[str]]:
+        profile = resolve_model_budget(config)
         budget = TokenBudget(
-            max_context_tokens=config.runtime.max_context_tokens,
-            reserved_output_tokens=config.runtime.max_output_tokens,
+            max_context_tokens=profile.max_context_tokens,
+            reserved_output_tokens=profile.max_output_tokens,
         )
         fitted: list[ContextSection] = []
         dropped: list[str] = []
@@ -282,19 +290,32 @@ class ContextAssembler:
             prepared.sections = self.build_core_sections(state, config)
         if not prepared.messages:
             prepared.messages = self.render_messages(state, prepared.sections)
-        prepared.token_estimate = self.token_counter.count_messages(prepared.messages)
+        prepared.token_estimate = self._token_counter_for(config).count_messages(
+            prepared.messages
+        )
         return prepared
 
     def with_estimates(
         self,
         sections: Iterable[ContextSection],
+        config: RuntimeConfig,
     ) -> list[ContextSection]:
-        return [self._estimated_section(section) for section in sections]
+        return [self._estimated_section(section, config) for section in sections]
 
-    def _estimated_section(self, section: ContextSection) -> ContextSection:
+    def _estimated_section(
+        self,
+        section: ContextSection,
+        config: RuntimeConfig,
+    ) -> ContextSection:
         if section.token_estimate is None:
-            section.token_estimate = self.token_counter.estimate_text(section.content)
+            section.token_estimate = self._token_counter_for(config).estimate_text(
+                section.content
+            )
         return section
+
+    def _token_counter_for(self, config: RuntimeConfig) -> SimpleTokenCounter:
+        profile = resolve_model_budget(config)
+        return SimpleTokenCounter(chars_per_token=profile.chars_per_token)
 
     def _lookup_query(self, state: LoopState) -> str:
         recent_user_messages = [

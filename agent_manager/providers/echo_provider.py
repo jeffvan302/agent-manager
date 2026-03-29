@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from agent_manager.providers.base import BaseProvider, ProviderCapabilities
+from agent_manager.providers.base import (
+    BaseProvider,
+    ProviderCapabilities,
+    maybe_parse_structured_output,
+)
 from agent_manager.types import ProviderRequest, ProviderResult
 
 
@@ -29,6 +33,10 @@ class EchoProvider(BaseProvider):
         return ProviderResult(
             text=latest_user_message,
             stop_reason="completed",
+            structured_output=maybe_parse_structured_output(
+                latest_user_message,
+                request.structured_output,
+            ),
             usage={
                 "input_messages": len(request.messages),
                 "model": request.model,

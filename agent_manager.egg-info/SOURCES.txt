@@ -1,6 +1,7 @@
 README.md
 pyproject.toml
 agent_manager/__init__.py
+agent_manager/async_utils.py
 agent_manager/config.py
 agent_manager/errors.py
 agent_manager/observability.py
@@ -20,6 +21,7 @@ agent_manager/cli/main.py
 agent_manager/context/__init__.py
 agent_manager/context/assembler.py
 agent_manager/context/budget.py
+agent_manager/context/functions.py
 agent_manager/context/pipeline.py
 agent_manager/context/sections.py
 agent_manager/context/summarizer.py
@@ -30,6 +32,15 @@ agent_manager/memory/retrieval.py
 agent_manager/memory/short_term.py
 agent_manager/plugins/__init__.py
 agent_manager/plugins/base.py
+agent_manager/plugins/chroma.py
+agent_manager/plugins/embeddings.py
+agent_manager/plugins/export.py
+agent_manager/plugins/faiss_store.py
+agent_manager/plugins/langchain.py
+agent_manager/plugins/llamaindex.py
+agent_manager/plugins/mcp.py
+agent_manager/plugins/openapi.py
+agent_manager/plugins/pgvector.py
 agent_manager/plugins/registry.py
 agent_manager/providers/__init__.py
 agent_manager/providers/anthropic_provider.py
@@ -55,4 +66,13 @@ agent_manager/tools/executor.py
 agent_manager/tools/policies.py
 agent_manager/tools/registry.py
 agent_manager/tools/builtins/__init__.py
+agent_manager/tools/builtins/filesystem.py
+agent_manager/tools/builtins/http.py
+agent_manager/tools/builtins/retrieval.py
+agent_manager/tools/builtins/shell.py
+tests/test_context.py
+tests/test_phase5_new.py
+tests/test_plugins.py
+tests/test_providers.py
 tests/test_smoke.py
+tests/test_tools.py

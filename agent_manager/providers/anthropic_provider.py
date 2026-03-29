@@ -11,6 +11,7 @@ from agent_manager.providers.base import (
     coerce_arguments,
     ensure_tool_call_id,
     message_tool_calls,
+    maybe_parse_structured_output,
 )
 from agent_manager.types import Message, ProviderRequest, ProviderResult, ToolCallRequest
 
@@ -35,7 +36,13 @@ class AnthropicProvider(HTTPProvider):
             payload=payload,
             headers=self._auth_headers(),
         )
-        return self._parse_response(response)
+        result = self._parse_response(response)
+        if request.structured_output is not None:
+            result.structured_output = maybe_parse_structured_output(
+                result.text,
+                request.structured_output,
+            )
+        return result
 
     def _auth_headers(self) -> dict[str, str]:
         return {

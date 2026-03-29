@@ -5,7 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import sqlite3
 from abc import ABC, abstractmethod
+from contextlib import closing
 from pathlib import Path
 
 from agent_manager.errors import CheckpointError
@@ -68,3 +70,64 @@ class JsonFileStateStore(StateStore):
             )
         except OSError as exc:
             raise CheckpointError(f"Failed to write checkpoint {path}") from exc
+
+
+class SqliteStateStore(StateStore):
+    """Persist checkpoints in a local SQLite database."""
+
+    def __init__(self, path: str | Path) -> None:
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._initialize()
+
+    def _connect(self) -> sqlite3.Connection:
+        return sqlite3.connect(self.path)
+
+    def _initialize(self) -> None:
+        try:
+            with closing(self._connect()) as conn:
+                with conn:
+                    conn.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS checkpoints (
+                            task_id TEXT PRIMARY KEY,
+                            saved_at TEXT NOT NULL,
+                            payload TEXT NOT NULL
+                        )
+                        """
+                    )
+        except sqlite3.Error as exc:
+            raise CheckpointError(f"Failed to initialize checkpoint database {self.path}") from exc
+
+    def load(self, task_id: str) -> LoopState | None:
+        try:
+            with closing(self._connect()) as conn:
+                row = conn.execute(
+                    "SELECT payload FROM checkpoints WHERE task_id = ?",
+                    (task_id,),
+                ).fetchone()
+        except sqlite3.Error as exc:
+            raise CheckpointError(f"Failed to read checkpoint from {self.path}") from exc
+        if row is None:
+            return None
+        payload = json.loads(str(row[0]))
+        return LoopState.from_dict(payload)
+
+    def save(self, state: LoopState) -> None:
+        saved_at = state.checkpoint_timestamps[-1] if state.checkpoint_timestamps else ""
+        payload = json.dumps(state.to_dict(), ensure_ascii=True)
+        try:
+            with closing(self._connect()) as conn:
+                with conn:
+                    conn.execute(
+                        """
+                        INSERT INTO checkpoints (task_id, saved_at, payload)
+                        VALUES (?, ?, ?)
+                        ON CONFLICT(task_id) DO UPDATE SET
+                            saved_at = excluded.saved_at,
+                            payload = excluded.payload
+                        """,
+                        (state.task_id, saved_at, payload),
+                    )
+        except sqlite3.Error as exc:
+            raise CheckpointError(f"Failed to write checkpoint into {self.path}") from exc

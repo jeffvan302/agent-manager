@@ -13,6 +13,7 @@ from agent_manager.providers.base import (
     coerce_text,
     ensure_tool_call_id,
     message_tool_calls,
+    maybe_parse_structured_output,
 )
 from agent_manager.types import Message, ProviderRequest, ProviderResult, ToolCallRequest
 
@@ -25,7 +26,7 @@ class OpenAICompatibleChatProvider(HTTPProvider):
     capabilities = ProviderCapabilities(
         supports_tools=True,
         supports_streaming=False,
-        supports_structured_output=False,
+        supports_structured_output=True,
         supports_system_messages=True,
     )
 
@@ -37,7 +38,13 @@ class OpenAICompatibleChatProvider(HTTPProvider):
             payload=payload,
             headers=self._auth_headers(),
         )
-        return self._parse_response(response)
+        result = self._parse_response(response)
+        if request.structured_output is not None:
+            result.structured_output = maybe_parse_structured_output(
+                result.text,
+                request.structured_output,
+            )
+        return result
 
     def _auth_headers(self) -> dict[str, str]:
         headers: dict[str, str] = {}
@@ -59,7 +66,24 @@ class OpenAICompatibleChatProvider(HTTPProvider):
             payload["max_tokens"] = request.max_tokens
         if request.temperature is not None:
             payload["temperature"] = request.temperature
+        if request.structured_output is not None:
+            payload["response_format"] = self._response_format(request)
         return payload
+
+    def _response_format(self, request: ProviderRequest) -> dict[str, Any]:
+        spec = request.structured_output
+        if spec is None:
+            return {"type": "json_object"}
+        if spec.type == "json_schema" and spec.schema:
+            return {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": spec.name or "response",
+                    "schema": spec.schema,
+                    "strict": spec.strict,
+                },
+            }
+        return {"type": "json_object"}
 
     def _to_openai_message(self, message: Message) -> dict[str, Any]:
         payload: dict[str, Any] = {"role": message.role}

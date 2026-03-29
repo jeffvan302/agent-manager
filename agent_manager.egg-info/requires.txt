@@ -1,15 +1,45 @@
 
+[all]
+openai
+anthropic
+httpx
+chromadb
+faiss-cpu
+psycopg2-binary
+sentence-transformers
+
 [anthropic]
 anthropic
+
+[chroma]
+chromadb
 
 [dev]
 pytest
 ruff
 
+[embeddings]
+sentence-transformers
+
+[faiss]
+faiss-cpu
+
+[langchain]
+langchain-core
+
+[llamaindex]
+llama-index-core
+
 [local-providers]
 httpx
 
+[mcp]
+mcp
+
 [openai]
 openai
+
+[pgvector]
+psycopg2-binary
 
 [retrieval]

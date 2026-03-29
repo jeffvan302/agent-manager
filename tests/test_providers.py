@@ -12,7 +12,7 @@ from agent_manager.providers.gemini_provider import GeminiProvider
 from agent_manager.providers.lmstudio_provider import LMStudioProvider
 from agent_manager.providers.ollama_provider import OllamaProvider
 from agent_manager.providers.openai_provider import OpenAIProvider
-from agent_manager.errors import ProviderRequestError
+from agent_manager.errors import ProviderRequestError, ProviderResourceExhaustedError
 from agent_manager.types import Message, ProviderRequest
 
 
@@ -131,6 +131,15 @@ class RetryableTestProvider(HTTPProvider):
             self.failures_before_success -= 1
             raise ProviderRequestError("transient failure", retryable=True)
         return {"ok": True}
+
+
+class ErrorInspectingProvider(HTTPProvider):
+    provider_name = "error-inspector"
+    default_base_url = "https://example.test"
+
+    async def generate(self, request: ProviderRequest):
+        del request
+        raise NotImplementedError
 
 
 class ProviderAdapterTests(unittest.TestCase):
@@ -343,6 +352,99 @@ class ProviderAdapterTests(unittest.TestCase):
         self.assertEqual(provider.calls, 3)
         self.assertTrue(provider.last_headers["User-Agent"].startswith("agent-manager/"))
         self.assertFalse(OpenAIProvider(ProviderConfig(settings={"api_key": "x"})).capabilities.supports_streaming)
+
+    def test_resource_exhaustion_classification_quota(self) -> None:
+        provider = ErrorInspectingProvider(ProviderConfig(name="error-inspector", model="n/a"))
+        error = provider._http_error_to_provider_error(
+            429,
+            '{"error": {"type": "insufficient_quota", "message": "You exceeded your current quota."}}',
+            {"Retry-After": "60"},
+        )
+        self.assertIsInstance(error, ProviderResourceExhaustedError)
+        self.assertEqual(error.kind, "quota_exhausted")
+        self.assertEqual(error.retry_after_seconds, 60.0)
+        self.assertEqual(error.status_code, 429)
+        self.assertFalse(error.retryable)
+
+    def test_resource_exhaustion_classification_rate_limit(self) -> None:
+        provider = ErrorInspectingProvider(ProviderConfig(name="error-inspector", model="n/a"))
+        error = provider._http_error_to_provider_error(
+            429,
+            '{"error": {"type": "rate_limit_exceeded", "message": "Too many requests."}}',
+            None,
+        )
+        self.assertIsInstance(error, ProviderResourceExhaustedError)
+        self.assertEqual(error.kind, "rate_limited")
+
+    def test_resource_exhaustion_classification_capacity(self) -> None:
+        provider = ErrorInspectingProvider(ProviderConfig(name="error-inspector", model="n/a"))
+        error = provider._http_error_to_provider_error(
+            529,
+            '{"error": {"type": "overloaded", "message": "Model is overloaded."}}',
+            None,
+        )
+        self.assertIsInstance(error, ProviderResourceExhaustedError)
+        self.assertEqual(error.kind, "capacity_exhausted")
+
+    def test_generic_error_is_not_resource_exhausted(self) -> None:
+        provider = ErrorInspectingProvider(ProviderConfig(name="error-inspector", model="n/a"))
+        error = provider._http_error_to_provider_error(
+            500,
+            '{"error": {"message": "Internal server error"}}',
+            None,
+        )
+        self.assertIsInstance(error, ProviderRequestError)
+        self.assertNotIsInstance(error, ProviderResourceExhaustedError)
+        self.assertTrue(error.retryable)
+
+    def test_resource_exhaustion_not_retried_by_http_layer(self) -> None:
+        """Resource-exhausted errors must bypass the retry loop."""
+
+        class QuotaExhaustedProvider(HTTPProvider):
+            provider_name = "quota-test"
+            default_base_url = "https://example.test"
+            calls = 0
+
+            async def generate(self, request: ProviderRequest):
+                raise NotImplementedError
+
+            def _request_json_blocking(self, method, url, payload, headers, timeout):
+                self.calls += 1
+                raise ProviderResourceExhaustedError(
+                    "quota hit",
+                    provider="quota-test",
+                    kind="quota_exhausted",
+                    status_code=429,
+                )
+
+        provider = QuotaExhaustedProvider(
+            ProviderConfig(
+                name="quota-test",
+                model="n/a",
+                settings={"request_retries": 3, "request_retry_backoff_seconds": 0},
+            )
+        )
+        with self.assertRaises(ProviderResourceExhaustedError):
+            asyncio.run(provider._request_json("POST", "test"))
+        # Should only be called once - no retries for resource exhaustion.
+        self.assertEqual(provider.calls, 1)
+
+    def test_resource_exhaustion_to_dict(self) -> None:
+        error = ProviderResourceExhaustedError(
+            "Quota exceeded.",
+            provider="openai",
+            kind="quota_exhausted",
+            status_code=429,
+            retry_after_seconds=30.0,
+            metadata={"code": "insufficient_quota"},
+        )
+        d = error.to_dict()
+        self.assertEqual(d["provider"], "openai")
+        self.assertEqual(d["kind"], "quota_exhausted")
+        self.assertEqual(d["status_code"], 429)
+        self.assertEqual(d["retry_after_seconds"], 30.0)
+        self.assertEqual(d["metadata"]["code"], "insufficient_quota")
+        self.assertIn("Quota exceeded", d["message"])
 
 
 if __name__ == "__main__":

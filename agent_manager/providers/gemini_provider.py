@@ -12,6 +12,7 @@ from agent_manager.providers.base import (
     coerce_arguments,
     ensure_tool_call_id,
     message_tool_calls,
+    maybe_parse_structured_output,
 )
 from agent_manager.types import Message, ProviderRequest, ProviderResult, ToolCallRequest
 
@@ -24,7 +25,7 @@ class GeminiProvider(HTTPProvider):
     capabilities = ProviderCapabilities(
         supports_tools=True,
         supports_streaming=False,
-        supports_structured_output=False,
+        supports_structured_output=True,
         supports_system_messages=True,
     )
 
@@ -39,7 +40,13 @@ class GeminiProvider(HTTPProvider):
             payload=payload,
             headers=self._auth_headers(),
         )
-        return self._parse_response(response)
+        result = self._parse_response(response)
+        if request.structured_output is not None:
+            result.structured_output = maybe_parse_structured_output(
+                result.text,
+                request.structured_output,
+            )
+        return result
 
     def _auth_headers(self) -> dict[str, str]:
         return {"x-goog-api-key": str(self.resolve_api_key(required=True))}
@@ -69,6 +76,10 @@ class GeminiProvider(HTTPProvider):
             generation_config["maxOutputTokens"] = request.max_tokens
         if request.temperature is not None:
             generation_config["temperature"] = request.temperature
+        if request.structured_output is not None:
+            generation_config["responseMimeType"] = "application/json"
+            if request.structured_output.schema:
+                generation_config["responseSchema"] = request.structured_output.schema
         if generation_config:
             payload["generationConfig"] = generation_config
 

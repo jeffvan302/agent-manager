@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -12,6 +13,9 @@ class MemoryEntry:
     key: str
     value: str
     source: str = "runtime"
+    timestamp: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
     scope: str = "task"
     confidence: float = 1.0
     tags: list[str] = field(default_factory=list)
@@ -29,4 +33,3 @@ class BaseMemoryStore(ABC):
     @abstractmethod
     def query(self, text: str) -> list[MemoryEntry]:
         """Return entries relevant to the query."""
-
