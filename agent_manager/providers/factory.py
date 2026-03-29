@@ -13,6 +13,7 @@ from agent_manager.providers.gemini_provider import GeminiProvider
 from agent_manager.providers.lmstudio_provider import LMStudioProvider
 from agent_manager.providers.ollama_provider import OllamaProvider
 from agent_manager.providers.openai_provider import OpenAIProvider
+from agent_manager.providers.vllm_provider import VLLMProvider
 
 ProviderType = Type[BaseProvider]
 
@@ -23,6 +24,7 @@ _PROVIDER_REGISTRY: dict[str, ProviderType] = {
     LMStudioProvider.provider_name: LMStudioProvider,
     OllamaProvider.provider_name: OllamaProvider,
     OpenAIProvider.provider_name: OpenAIProvider,
+    VLLMProvider.provider_name: VLLMProvider,
 }
 
 

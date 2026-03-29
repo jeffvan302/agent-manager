@@ -8,6 +8,7 @@ from agent_manager.providers.gemini_provider import GeminiProvider
 from agent_manager.providers.lmstudio_provider import LMStudioProvider
 from agent_manager.providers.ollama_provider import OllamaProvider
 from agent_manager.providers.openai_provider import OpenAIProvider
+from agent_manager.providers.vllm_provider import VLLMProvider
 
 __all__ = [
     "AnthropicProvider",
@@ -17,6 +18,7 @@ __all__ = [
     "LMStudioProvider",
     "OllamaProvider",
     "OpenAIProvider",
+    "VLLMProvider",
     "ProviderCapabilities",
     "available_providers",
     "build_provider",

@@ -90,6 +90,7 @@ Best fit:
 - `profile="coding-agent"` or `profile="local-dev"`
 - built-in file and shell tools
 - optional retrieval for architecture notes, docs, or code standards
+- any supported backend, including local sources like Ollama, LM Studio, and vLLM
 
 ```python
 from agent_manager import AgentSession, RuntimeConfig
@@ -105,6 +106,21 @@ config = RuntimeConfig.from_dict(
 session = AgentSession(config=config)
 result = session.run("Inspect the repository and propose a safe refactor.")
 print(result.output_text)
+```
+
+Local vLLM variant:
+
+```python
+config = RuntimeConfig.from_dict(
+    {
+        "provider": {
+            "name": "vllm",
+            "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+            "base_url": "http://localhost:8000/v1",
+        },
+        "profile": "coding-agent",
+    }
+)
 ```
 
 Simple prompt:

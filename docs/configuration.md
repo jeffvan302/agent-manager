@@ -84,6 +84,22 @@ max_output_tokens = 1200
 model_context_tokens = 128000
 ```
 
+### vLLM example
+
+```toml
+[provider]
+name = "vllm"
+model = "NousResearch/Meta-Llama-3-8B-Instruct"
+base_url = "http://localhost:8000/v1"
+api_key_env = "VLLM_API_KEY"
+
+[provider.settings]
+request_timeout_seconds = 120
+request_retries = 3
+request_retry_backoff_seconds = 0.5
+extra_body = { top_k = 40, parallel_tool_calls = false }
+```
+
 ## Runtime limits
 
 `runtime` controls the loop:

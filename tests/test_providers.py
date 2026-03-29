@@ -12,6 +12,7 @@ from agent_manager.providers.gemini_provider import GeminiProvider
 from agent_manager.providers.lmstudio_provider import LMStudioProvider
 from agent_manager.providers.ollama_provider import OllamaProvider
 from agent_manager.providers.openai_provider import OpenAIProvider
+from agent_manager.providers.vllm_provider import VLLMProvider
 from agent_manager.errors import ProviderRequestError, ProviderResourceExhaustedError
 from agent_manager.types import Message, ProviderRequest
 
@@ -99,6 +100,10 @@ class CaptureOllamaProvider(CaptureMixin, OllamaProvider):
 
 
 class CaptureLMStudioProvider(CaptureMixin, LMStudioProvider):
+    pass
+
+
+class CaptureVLLMProvider(CaptureMixin, VLLMProvider):
     pass
 
 
@@ -434,6 +439,47 @@ class ProviderAdapterTests(unittest.TestCase):
         self.assertEqual(provider.last_path, "chat/completions")
         self.assertNotIn("Authorization", provider.last_headers)
         self.assertEqual(result.text, "Local answer.")
+        self.assertEqual(result.stop_reason, "completed")
+
+    def test_vllm_uses_openai_compatible_shape_and_extra_body(self) -> None:
+        provider = CaptureVLLMProvider(
+            {
+                "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "content": "vLLM answer.",
+                        },
+                    }
+                ],
+            },
+            ProviderConfig(
+                name="vllm",
+                model="NousResearch/Meta-Llama-3-8B-Instruct",
+                settings={
+                    "extra_body": {
+                        "top_k": 40,
+                        "parallel_tool_calls": False,
+                    }
+                },
+            ),
+        )
+        request = ProviderRequest(
+            model="NousResearch/Meta-Llama-3-8B-Instruct",
+            messages=BASE_MESSAGES[:2],
+            tools=BASE_TOOLS,
+        )
+
+        result = asyncio.run(provider.generate(request))
+
+        self.assertEqual(provider.resolve_base_url(), "http://localhost:8000/v1")
+        self.assertEqual(provider.last_path, "chat/completions")
+        self.assertNotIn("Authorization", provider.last_headers)
+        self.assertEqual(provider.last_payload["top_k"], 40)
+        self.assertEqual(provider.last_payload["parallel_tool_calls"], False)
+        self.assertEqual(result.text, "vLLM answer.")
         self.assertEqual(result.stop_reason, "completed")
 
     def test_http_provider_retries_and_sets_user_agent(self) -> None:

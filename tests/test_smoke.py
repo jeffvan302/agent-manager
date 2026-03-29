@@ -149,10 +149,13 @@ class SmokeTests(unittest.TestCase):
     def test_echo_provider_is_registered(self) -> None:
         self.assertIn("echo", available_providers())
         self.assertIn("openai", available_providers())
+        self.assertIn("vllm", available_providers())
 
     def test_scaffolded_provider_can_be_built(self) -> None:
         provider = build_provider("openai")
         self.assertEqual(provider.provider_name, "openai")
+        vllm = build_provider("vllm")
+        self.assertEqual(vllm.provider_name, "vllm")
 
     def test_runtime_can_complete_a_basic_run(self) -> None:
         temp_dir = make_workspace_temp_dir()
