@@ -204,12 +204,19 @@ class ProviderAdapterTests(unittest.TestCase):
                 settings={"api_key": "test-key"},
             ),
         )
-        request = ProviderRequest(model="gpt-4.1-mini", messages=BASE_MESSAGES, tools=BASE_TOOLS)
+        request = ProviderRequest(
+            model="gpt-4.1-mini",
+            messages=BASE_MESSAGES,
+            tools=BASE_TOOLS,
+            max_tokens=64,
+        )
 
         result = asyncio.run(provider.generate(request))
 
         self.assertEqual(provider.last_path, "chat/completions")
         self.assertEqual(provider.last_headers["Authorization"], "Bearer test-key")
+        self.assertEqual(provider.last_payload["max_completion_tokens"], 64)
+        self.assertNotIn("max_tokens", provider.last_payload)
         self.assertEqual(provider.last_payload["tools"][0]["function"]["name"], "lookup_weather")
         self.assertEqual(provider.last_payload["messages"][2]["tool_calls"][0]["id"], "call_1")
         self.assertEqual(provider.last_payload["messages"][3]["tool_call_id"], "call_1")
@@ -431,13 +438,20 @@ class ProviderAdapterTests(unittest.TestCase):
             },
             ProviderConfig(name="lmstudio", model="local-model"),
         )
-        request = ProviderRequest(model="local-model", messages=BASE_MESSAGES[:2], tools=BASE_TOOLS)
+        request = ProviderRequest(
+            model="local-model",
+            messages=BASE_MESSAGES[:2],
+            tools=BASE_TOOLS,
+            max_tokens=32,
+        )
 
         result = asyncio.run(provider.generate(request))
 
         self.assertEqual(provider.resolve_base_url(), "http://localhost:1234/v1")
         self.assertEqual(provider.last_path, "chat/completions")
         self.assertNotIn("Authorization", provider.last_headers)
+        self.assertEqual(provider.last_payload["max_tokens"], 32)
+        self.assertNotIn("max_completion_tokens", provider.last_payload)
         self.assertEqual(result.text, "Local answer.")
         self.assertEqual(result.stop_reason, "completed")
 
@@ -470,6 +484,7 @@ class ProviderAdapterTests(unittest.TestCase):
             model="NousResearch/Meta-Llama-3-8B-Instruct",
             messages=BASE_MESSAGES[:2],
             tools=BASE_TOOLS,
+            max_tokens=48,
         )
 
         result = asyncio.run(provider.generate(request))
@@ -477,6 +492,8 @@ class ProviderAdapterTests(unittest.TestCase):
         self.assertEqual(provider.resolve_base_url(), "http://localhost:8000/v1")
         self.assertEqual(provider.last_path, "chat/completions")
         self.assertNotIn("Authorization", provider.last_headers)
+        self.assertEqual(provider.last_payload["max_tokens"], 48)
+        self.assertNotIn("max_completion_tokens", provider.last_payload)
         self.assertEqual(provider.last_payload["top_k"], 40)
         self.assertEqual(provider.last_payload["parallel_tool_calls"], False)
         self.assertEqual(result.text, "vLLM answer.")

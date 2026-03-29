@@ -127,9 +127,12 @@ Purpose:
 
 - search the web through the configured search backend
 
-Default backend:
+Configurable backends:
 
-- `DuckDuckGoWebSearcher`
+- `duckduckgo`
+- `serpapi`
+- `tavily`
+- `brave`
 
 Typical arguments:
 
@@ -139,6 +142,25 @@ Typical arguments:
   "limit": 5
 }
 ```
+
+Configuration example:
+
+```toml
+[tools.web_search]
+enabled = true
+backend = "tavily"
+api_key_env = "TAVILY_API_KEY"
+timeout_seconds = 20
+max_results = 5
+
+[tools.web_search.settings]
+search_depth = "basic"
+topic = "general"
+```
+
+Setup guide:
+
+- [Web Search Tool Setup](./tools-web-search.md)
 
 ### `retrieve_documents`
 
@@ -167,6 +189,7 @@ Setup guide:
 These are the tool setups that deserve their own guides.
 
 - [Retrieval Tool Setup](./tools-retrieval.md)
+- [Web Search Tool Setup](./tools-web-search.md)
 - [TinyDB Tool Setup](./tools-tinydb.md)
 - [Build Your Own Tool](./tools-your-own.md)
 
@@ -234,6 +257,48 @@ result = session.tool_executor.execute(call, context)
 print(result.ok)
 print(result.output)
 ```
+
+## CLI tool testing
+
+You can also test tools directly from the command line without going through a model run.
+
+List the tools available under a config:
+
+```bash
+tool-test --config test-conn.toml --list
+```
+
+Show the schema for a tool:
+
+```bash
+tool-test --config test-conn.toml --schema web_search
+```
+
+Run a tool with JSON input:
+
+```bash
+tool-test --config test-conn.toml http_request "{\"url\":\"https://httpbin.org/get\",\"method\":\"GET\"}"
+```
+
+Run a tool with a plain string input when the tool has exactly one required field:
+
+```bash
+tool-test --config test-conn.toml web_search "budget GPU for yolo12 training"
+tool-test --config test-conn.toml read_file "requirements.md"
+tool-test --config test-conn.toml run_shell_command "python -V"
+```
+
+Load input from a JSON file:
+
+```bash
+tool-test --config test-conn.toml write_file @tool-input.json
+```
+
+Notes:
+
+- `tool-test` reuses the current runtime config and tool policy
+- if you use `profile="readonly"`, some tools may still be blocked unless explicitly allowed
+- `retrieve_documents` is only available when a retriever is configured in the session setup
 
 ## Tool policies
 

@@ -190,12 +190,15 @@ class OpenAICompatibleChatProvider(HTTPProvider):
             payload["tools"] = [self._to_openai_tool(tool) for tool in request.tools]
             payload["tool_choice"] = "auto"
         if request.max_tokens is not None:
-            payload["max_tokens"] = request.max_tokens
+            self._set_output_token_limit(payload, request.max_tokens)
         if request.temperature is not None:
             payload["temperature"] = request.temperature
         if request.structured_output is not None:
             payload["response_format"] = self._response_format(request)
         return payload
+
+    def _set_output_token_limit(self, payload: dict[str, Any], max_tokens: int) -> None:
+        payload["max_tokens"] = max_tokens
 
     def _response_format(self, request: ProviderRequest) -> dict[str, Any]:
         spec = request.structured_output
@@ -318,4 +321,9 @@ class OpenAIProvider(OpenAICompatibleChatProvider):
     provider_name = "openai"
     default_base_url = "https://api.openai.com/v1"
     default_api_key_env = "OPENAI_API_KEY"
+
+    def _set_output_token_limit(self, payload: dict[str, Any], max_tokens: int) -> None:
+        # OpenAI's chat-completions endpoint now prefers max_completion_tokens,
+        # and newer reasoning / o-series models reject max_tokens entirely.
+        payload["max_completion_tokens"] = max_tokens
     requires_api_key = True

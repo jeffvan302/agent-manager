@@ -56,6 +56,19 @@ Generate and test TOML configs with:
 agent-manager-config
 ```
 
+## Tool Testing
+
+Test registered tools directly with:
+
+```bash
+tool-test --list
+tool-test read_file "requirements.md"
+tool-test web_search "budget GPU for yolo12 training"
+```
+
+`web_search` can now be configured through `[tools.web_search]` in TOML, including
+`duckduckgo`, `serpapi`, `tavily`, and `brave` backends.
+
 ## Package Layout
 
 ```text

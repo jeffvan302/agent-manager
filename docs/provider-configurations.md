@@ -26,6 +26,7 @@ Notes:
 - `base_url` is optional when the provider has a built-in default
 - `api_key_env` is optional when the provider has a built-in default or does not require an API key
 - `provider.settings` is optional
+- when you want to store the raw secret in the file, use `provider.settings.api_key`
 
 ## `echo`
 
@@ -50,6 +51,18 @@ api_key_env = "OPENAI_API_KEY"
 request_timeout_seconds = 60
 request_retries = 3
 request_retry_backoff_seconds = 0.5
+```
+
+Direct-key variant:
+
+```toml
+[provider]
+name = "openai"
+model = "gpt-4o-mini"
+base_url = "https://api.openai.com/v1"
+
+[provider.settings]
+api_key = "your-openai-key"
 ```
 
 ## `anthropic`

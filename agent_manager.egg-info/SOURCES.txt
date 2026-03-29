@@ -17,7 +17,9 @@ agent_manager/api/__init__.py
 agent_manager/api/schemas.py
 agent_manager/api/server.py
 agent_manager/cli/__init__.py
+agent_manager/cli/config_tool.py
 agent_manager/cli/main.py
+agent_manager/cli/tool_test.py
 agent_manager/context/__init__.py
 agent_manager/context/assembler.py
 agent_manager/context/budget.py
@@ -43,6 +45,7 @@ agent_manager/plugins/mcp.py
 agent_manager/plugins/openapi.py
 agent_manager/plugins/pgvector.py
 agent_manager/plugins/registry.py
+agent_manager/plugins/tinydb.py
 agent_manager/providers/__init__.py
 agent_manager/providers/anthropic_provider.py
 agent_manager/providers/base.py
@@ -52,6 +55,7 @@ agent_manager/providers/gemini_provider.py
 agent_manager/providers/lmstudio_provider.py
 agent_manager/providers/ollama_provider.py
 agent_manager/providers/openai_provider.py
+agent_manager/providers/vllm_provider.py
 agent_manager/runtime/__init__.py
 agent_manager/runtime/events.py
 agent_manager/runtime/loop.py
@@ -73,10 +77,13 @@ agent_manager/tools/builtins/http.py
 agent_manager/tools/builtins/retrieval.py
 agent_manager/tools/builtins/shell.py
 agent_manager/tools/builtins/web.py
+tests/test_config_tool.py
 tests/test_context.py
 tests/test_phase5_new.py
 tests/test_plugins.py
 tests/test_providers.py
 tests/test_requirements_completion.py
 tests/test_smoke.py
+tests/test_tool_test_cli.py
 tests/test_tools.py
+tests/test_web_search.py

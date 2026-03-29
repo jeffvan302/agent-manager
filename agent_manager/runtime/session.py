@@ -30,7 +30,7 @@ from agent_manager.tools.policies import (
     ToolPolicyProfile,
 )
 from agent_manager.tools.registry import ToolRegistry
-from agent_manager.tools.web_search import BaseWebSearcher
+from agent_manager.tools.web_search import BaseWebSearcher, build_web_searcher
 from agent_manager.types import AgentRunResult, StructuredOutputSpec
 
 
@@ -72,7 +72,7 @@ class AgentSession:
         self.tools = self._build_tool_registry(
             tools=tools,
             retriever=retriever,
-            web_searcher=web_searcher,
+            web_searcher=web_searcher or self._build_configured_web_searcher(),
             include_builtin_tools=include_builtin_tools,
         )
         self.policy_engine = self._build_policy_engine(approval_hook=approval_hook)
@@ -217,10 +217,16 @@ class AgentSession:
                 registry,
                 retriever=retriever,
                 web_searcher=web_searcher,
+                include_web_search=self.config.tools.web_search.enabled or web_searcher is not None,
             )
         if tools is not None:
             registry.register_many(tools.all(), replace=True)
         return registry
+
+    def _build_configured_web_searcher(self) -> BaseWebSearcher | None:
+        if not self.config.tools.web_search.enabled:
+            return None
+        return build_web_searcher(self.config.tools.web_search)
 
     def _build_state_store(self) -> StateStore:
         backend = self.config.resolved_checkpoint_backend()

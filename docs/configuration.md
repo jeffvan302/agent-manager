@@ -57,6 +57,12 @@ pre_call_functions = [
   "apply_token_budget",
   "finalize_messages",
 ]
+
+[tools.web_search]
+enabled = true
+backend = "duckduckgo"
+timeout_seconds = 20
+max_results = 5
 ```
 
 ## Provider config
@@ -84,6 +90,22 @@ request_retry_backoff_seconds = 0.5
 max_output_tokens = 1200
 model_context_tokens = 128000
 ```
+
+You can also store the raw key directly in TOML:
+
+```toml
+[provider]
+name = "openai"
+model = "gpt-4o-mini"
+
+[provider.settings]
+api_key = "your-openai-key"
+```
+
+The provider lookup order is:
+
+1. `provider.settings.api_key`
+2. environment variable named by `provider.api_key_env`
 
 ### vLLM example
 
@@ -132,6 +154,65 @@ denied_tools = ["write_file"]
 denied_tags = ["network"]
 denied_permissions = ["process:execute"]
 ```
+
+## Tool implementation config
+
+`tools` controls how certain built-in tools are implemented.
+
+Current structured tool config:
+
+- `tools.web_search`
+
+Example with Tavily:
+
+```toml
+[tools.web_search]
+enabled = true
+backend = "tavily"
+api_key_env = "TAVILY_API_KEY"
+endpoint = "https://api.tavily.com/search"
+timeout_seconds = 20
+max_results = 5
+
+[tools.web_search.settings]
+search_depth = "basic"
+topic = "general"
+include_answer = false
+```
+
+Example with Brave Search:
+
+```toml
+[tools.web_search]
+enabled = true
+backend = "brave"
+api_key_env = "BRAVE_SEARCH_API_KEY"
+
+[tools.web_search.settings]
+extra_snippets = true
+country = "us"
+search_lang = "en"
+```
+
+Example with SerpAPI:
+
+```toml
+[tools.web_search]
+enabled = true
+backend = "serpapi"
+api_key_env = "SERPAPI_API_KEY"
+
+[tools.web_search.settings]
+engine = "google"
+gl = "us"
+hl = "en"
+```
+
+Notes:
+
+- `tool_policy` decides whether the agent is allowed to call `web_search`
+- `[tools.web_search]` decides which backend actually handles the search
+- `tools.web_search.enabled = false` removes the built-in `web_search` tool from default registration
 
 ## State backend
 
@@ -208,3 +289,5 @@ config = RuntimeConfig.from_env()
 - keep `pre_call_functions` explicit per profile so behavior stays predictable
 
 If you want a guided way to create the TOML file, see [Configuration Tool](./config-tool.md).
+
+For a backend-by-backend guide to web search, see [Web Search Tool Setup](./tools-web-search.md).

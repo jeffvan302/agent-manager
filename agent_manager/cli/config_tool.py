@@ -19,7 +19,9 @@ from agent_manager.errors import (
 )
 from agent_manager.providers.base import HTTPProvider
 from agent_manager.providers.factory import available_providers, build_provider
+from agent_manager.tools.builtins import default_builtin_tools
 from agent_manager.tools.policies import DEFAULT_PROFILES
+from agent_manager.tools.web_search import available_web_search_backends
 from agent_manager.types import Message, ProviderRequest
 
 DEFAULT_CONNECTION_TEST_PROMPT = "Reply with exactly: OK"
@@ -72,6 +74,56 @@ PROFILE_HELP: dict[str, str] = {
     "coding-agent": "General coding profile with tool access enabled.",
     "unrestricted-lab": "Permissive lab profile for experiments.",
 }
+
+WEB_SEARCH_PRESETS: dict[str, dict[str, Any]] = {
+    "duckduckgo": {
+        "description": "No-key instant-answer style search backend.",
+        "endpoint": "https://api.duckduckgo.com/",
+        "api_key_env": None,
+    },
+    "serpapi": {
+        "description": "Hosted SerpAPI search backend.",
+        "endpoint": "https://serpapi.com/search.json",
+        "api_key_env": "SERPAPI_API_KEY",
+        "settings": {"engine": "google"},
+    },
+    "tavily": {
+        "description": "Hosted Tavily search backend.",
+        "endpoint": "https://api.tavily.com/search",
+        "api_key_env": "TAVILY_API_KEY",
+        "settings": {"search_depth": "basic", "topic": "general"},
+    },
+    "brave": {
+        "description": "Hosted Brave Search API backend.",
+        "endpoint": "https://api.search.brave.com/res/v1/web/search",
+        "api_key_env": "BRAVE_SEARCH_API_KEY",
+        "settings": {"extra_snippets": False},
+    },
+}
+
+
+def known_builtin_tool_names() -> list[str]:
+    names = {tool.spec.name for tool in default_builtin_tools()}
+    names.add("retrieve_documents")
+    return sorted(names)
+
+
+def builtin_tool_help_text() -> str:
+    names = known_builtin_tool_names()
+    return (
+        "Known built-in tools: "
+        + ", ".join(names)
+        + ". Note: retrieve_documents is only available when a retriever is configured."
+    )
+
+
+def web_search_backend_help_text() -> str:
+    names = available_web_search_backends()
+    descriptions = [
+        f"{name}: {WEB_SEARCH_PRESETS.get(name, {}).get('description', 'configured backend')}"
+        for name in names
+    ]
+    return "Available web_search backends: " + "; ".join(descriptions) + "."
 
 
 @dataclass(slots=True)
@@ -252,6 +304,14 @@ def _display_value(value: Any, *, max_length: int = 72) -> str:
     return text[: max_length - 3] + "..."
 
 
+def _mask_secret(value: str | None) -> str | None:
+    if not value:
+        return value
+    if len(value) <= 8:
+        return "*" * len(value)
+    return f"{value[:4]}...{value[-4:]}"
+
+
 def _parse_bool(value: str) -> bool:
     normalized = value.strip().lower()
     if normalized in {"1", "true", "yes", "y", "on"}:
@@ -333,6 +393,17 @@ def _clear_provider_settings_json(config: RuntimeConfig) -> None:
     config.provider.settings.pop("extra_body", None)
 
 
+def _set_provider_api_key(config: RuntimeConfig, raw: str) -> None:
+    value = raw.strip()
+    if not value:
+        raise ValueError("API key must not be empty.")
+    config.provider.settings["api_key"] = value
+
+
+def _clear_provider_api_key(config: RuntimeConfig) -> None:
+    config.provider.settings.pop("api_key", None)
+
+
 def _set_top_level_string(attribute: str) -> Callable[[RuntimeConfig, str], None]:
     def _setter(config: RuntimeConfig, raw: str) -> None:
         value = raw.strip()
@@ -410,6 +481,81 @@ def _clear_policy_list(attribute: str) -> Callable[[RuntimeConfig], None]:
     return _clearer
 
 
+def _set_tools_web_search_bool(attribute: str) -> Callable[[RuntimeConfig, str], None]:
+    def _setter(config: RuntimeConfig, raw: str) -> None:
+        setattr(config.tools.web_search, attribute, _parse_bool(raw))
+    return _setter
+
+
+def _set_tools_web_search_string(attribute: str) -> Callable[[RuntimeConfig, str], None]:
+    def _setter(config: RuntimeConfig, raw: str) -> None:
+        value = raw.strip()
+        setattr(config.tools.web_search, attribute, value or None)
+    return _setter
+
+
+def _clear_tools_web_search_string(attribute: str) -> Callable[[RuntimeConfig], None]:
+    def _clearer(config: RuntimeConfig) -> None:
+        setattr(config.tools.web_search, attribute, None)
+    return _clearer
+
+
+def _set_tools_web_search_float(attribute: str) -> Callable[[RuntimeConfig, str], None]:
+    def _setter(config: RuntimeConfig, raw: str) -> None:
+        setattr(config.tools.web_search, attribute, float(raw.strip()))
+    return _setter
+
+
+def _set_tools_web_search_int(attribute: str) -> Callable[[RuntimeConfig, str], None]:
+    def _setter(config: RuntimeConfig, raw: str) -> None:
+        setattr(config.tools.web_search, attribute, int(raw.strip()))
+    return _setter
+
+
+def _set_web_search_backend(config: RuntimeConfig, raw: str) -> None:
+    backend = raw.strip().lower()
+    if backend not in available_web_search_backends():
+        raise ValueError(
+            "Unknown web_search backend "
+            f"'{backend}'. Available backends: {', '.join(available_web_search_backends())}"
+        )
+    previous_backend = config.tools.web_search.backend.strip().lower()
+    previous_preset = WEB_SEARCH_PRESETS.get(previous_backend, {})
+    next_preset = WEB_SEARCH_PRESETS.get(backend, {})
+    config.tools.web_search.backend = backend
+
+    current_endpoint = config.tools.web_search.endpoint
+    if current_endpoint in {None, "", previous_preset.get("endpoint")}:
+        config.tools.web_search.endpoint = next_preset.get("endpoint")
+
+    current_api_key_env = config.tools.web_search.api_key_env
+    if current_api_key_env in {None, "", previous_preset.get("api_key_env")}:
+        config.tools.web_search.api_key_env = next_preset.get("api_key_env")
+
+    current_settings = config.tools.web_search.settings
+    if not current_settings or current_settings == previous_preset.get("settings", {}):
+        config.tools.web_search.settings = dict(next_preset.get("settings", {}))
+
+
+def _set_web_search_api_key(config: RuntimeConfig, raw: str) -> None:
+    value = raw.strip()
+    if not value:
+        raise ValueError("API key must not be empty.")
+    config.tools.web_search.api_key = value
+
+
+def _clear_web_search_api_key(config: RuntimeConfig) -> None:
+    config.tools.web_search.api_key = None
+
+
+def _set_web_search_settings_json(config: RuntimeConfig, raw: str) -> None:
+    config.tools.web_search.settings = _parse_json_object(raw)
+
+
+def _clear_web_search_settings_json(config: RuntimeConfig) -> None:
+    config.tools.web_search.settings = {}
+
+
 def provider_fields() -> list[FieldSpec]:
     return [
         FieldSpec(
@@ -441,11 +587,25 @@ def provider_fields() -> list[FieldSpec]:
             label="provider.api_key_env",
             help_text=(
                 "Environment variable name that stores the provider API key. "
-                "Leave unset when the provider does not require authentication."
+                "Enter the variable name, for example OPENAI_API_KEY, not the key value itself."
             ),
             getter=lambda config: config.provider.api_key_env,
             setter=_set_optional_provider_field("api_key_env"),
             clearer=_clear_optional_provider_field("api_key_env"),
+        ),
+        FieldSpec(
+            label="provider.settings.api_key",
+            help_text=(
+                "Optional raw API key stored directly in the TOML file. "
+                "This is convenient for local testing but less secure than using provider.api_key_env."
+            ),
+            getter=lambda config: _mask_secret(
+                config.provider.settings.get("api_key")
+                if isinstance(config.provider.settings.get("api_key"), str)
+                else None
+            ),
+            setter=_set_provider_api_key,
+            clearer=_clear_provider_api_key,
         ),
         _set_provider_setting_number("request_timeout_seconds", float),
         _set_provider_setting_number("request_retries", int),
@@ -555,17 +715,24 @@ def logging_fields() -> list[FieldSpec]:
 
 
 def policy_fields() -> list[FieldSpec]:
+    builtin_help = builtin_tool_help_text()
     return [
         FieldSpec(
             label="tool_policy.allowed_tools",
-            help_text="Comma-separated tool names that are explicitly allowed.",
+            help_text=(
+                "Comma-separated tool names that are explicitly allowed. "
+                + builtin_help
+            ),
             getter=lambda config: config.tool_policy.allowed_tools,
             setter=_set_policy_list("allowed_tools"),
             clearer=_clear_policy_list("allowed_tools"),
         ),
         FieldSpec(
             label="tool_policy.denied_tools",
-            help_text="Comma-separated tool names that are blocked.",
+            help_text=(
+                "Comma-separated tool names that are blocked. "
+                + builtin_help
+            ),
             getter=lambda config: config.tool_policy.denied_tools,
             setter=_set_policy_list("denied_tools"),
             clearer=_clear_policy_list("denied_tools"),
@@ -583,6 +750,81 @@ def policy_fields() -> list[FieldSpec]:
             getter=lambda config: config.tool_policy.denied_permissions,
             setter=_set_policy_list("denied_permissions"),
             clearer=_clear_policy_list("denied_permissions"),
+        ),
+    ]
+
+
+def tool_fields() -> list[FieldSpec]:
+    backend_help = web_search_backend_help_text()
+    return [
+        FieldSpec(
+            label="tools.web_search.enabled",
+            help_text=(
+                "Enable or disable the built-in web_search tool. "
+                "Set this to false to omit the tool from built-in registration."
+            ),
+            getter=lambda config: config.tools.web_search.enabled,
+            setter=_set_tools_web_search_bool("enabled"),
+        ),
+        FieldSpec(
+            label="tools.web_search.backend",
+            help_text=backend_help,
+            getter=lambda config: config.tools.web_search.backend,
+            setter=_set_web_search_backend,
+        ),
+        FieldSpec(
+            label="tools.web_search.endpoint",
+            help_text=(
+                "Optional custom endpoint override for the selected backend. "
+                "Leave unset to use the built-in default for that backend."
+            ),
+            getter=lambda config: config.tools.web_search.endpoint,
+            setter=_set_tools_web_search_string("endpoint"),
+            clearer=_clear_tools_web_search_string("endpoint"),
+        ),
+        FieldSpec(
+            label="tools.web_search.api_key_env",
+            help_text=(
+                "Environment variable name that stores the web-search API key, "
+                "for example SERPAPI_API_KEY, TAVILY_API_KEY, or BRAVE_SEARCH_API_KEY."
+            ),
+            getter=lambda config: config.tools.web_search.api_key_env,
+            setter=_set_tools_web_search_string("api_key_env"),
+            clearer=_clear_tools_web_search_string("api_key_env"),
+        ),
+        FieldSpec(
+            label="tools.web_search.api_key",
+            help_text=(
+                "Optional raw API key stored directly in the TOML file for the selected "
+                "web-search backend."
+            ),
+            getter=lambda config: _mask_secret(config.tools.web_search.api_key),
+            setter=_set_web_search_api_key,
+            clearer=_clear_web_search_api_key,
+        ),
+        FieldSpec(
+            label="tools.web_search.timeout_seconds",
+            help_text="Timeout for outbound search requests.",
+            getter=lambda config: config.tools.web_search.timeout_seconds,
+            setter=_set_tools_web_search_float("timeout_seconds"),
+        ),
+        FieldSpec(
+            label="tools.web_search.max_results",
+            help_text="Maximum number of results returned by the selected search backend.",
+            getter=lambda config: config.tools.web_search.max_results,
+            setter=_set_tools_web_search_int("max_results"),
+        ),
+        FieldSpec(
+            label="tools.web_search.settings",
+            help_text=(
+                "Optional backend-specific JSON object. "
+                "Examples: {\"engine\":\"google\"} for SerpAPI, "
+                "{\"search_depth\":\"basic\",\"topic\":\"general\"} for Tavily, "
+                "{\"extra_snippets\":true} for Brave."
+            ),
+            getter=lambda config: config.tools.web_search.settings,
+            setter=_set_web_search_settings_json,
+            clearer=_clear_web_search_settings_json,
         ),
     ]
 
@@ -665,14 +907,16 @@ class ConfigWizard:
             elif choice == "7":
                 self._edit_section("Logging", logging_fields())
             elif choice == "8":
-                self._edit_section("Tool Policy", policy_fields())
+                self._edit_section("Tools", tool_fields())
             elif choice == "9":
-                self._edit_section("General and State", top_level_fields())
+                self._edit_section("Tool Policy", policy_fields())
             elif choice == "10":
-                self._preview_toml()
+                self._edit_section("General and State", top_level_fields())
             elif choice == "11":
-                self._save_toml()
+                self._preview_toml()
             elif choice == "12":
+                self._save_toml()
+            elif choice == "13":
                 self._show_usage_examples()
             elif choice in {"0", "q", "quit", "exit"}:
                 if self.dirty and not self._confirm("You have unsaved changes. Exit anyway? [y/N]: "):
@@ -699,16 +943,21 @@ class ConfigWizard:
         self.out.write("5. Edit runtime\n")
         self.out.write("6. Edit context\n")
         self.out.write("7. Edit logging\n")
-        self.out.write("8. Edit tool policy\n")
-        self.out.write("9. Edit general and state settings\n")
-        self.out.write("10. Preview generated TOML\n")
-        self.out.write("11. Save TOML config\n")
-        self.out.write("12. Show how to use the generated config\n")
+        self.out.write("8. Edit tools\n")
+        self.out.write("9. Edit tool policy\n")
+        self.out.write("10. Edit general and state settings\n")
+        self.out.write("11. Preview generated TOML\n")
+        self.out.write("12. Save TOML config\n")
+        self.out.write("13. Show how to use the generated config\n")
         self.out.write("0. Exit\n\n")
 
     def _edit_section(self, title: str, fields: list[FieldSpec]) -> None:
         while True:
             self.out.write(f"\n--- {title} ---\n")
+            if title == "Tool Policy":
+                self.out.write(builtin_tool_help_text() + "\n")
+            if title == "Tools":
+                self.out.write(web_search_backend_help_text() + "\n")
             for index, field in enumerate(fields, start=1):
                 self.out.write(
                     f"{index}. {field.label}: {_display_value(field.getter(self.config))}\n"

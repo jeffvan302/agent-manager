@@ -357,6 +357,51 @@ class RequirementsCompletionTests(unittest.TestCase):
                 ),
             )
 
+    def test_readonly_profile_can_explicitly_allow_web_research_tools(self) -> None:
+        session = AgentSession(
+            config=RuntimeConfig.from_dict(
+                {
+                    "profile": "readonly",
+                    "tool_policy": {
+                        "allowed_tools": ["web_search", "http_request"],
+                    },
+                }
+            ),
+            web_searcher=FakeWebSearcher(),
+        )
+
+        web_result = session.tool_executor.execute(
+            ToolCallRequest(
+                id="web-1",
+                name="web_search",
+                arguments={"query": "agent manager docs", "limit": 1},
+            ),
+            ToolContext(
+                task_id="task-web",
+                step_index=0,
+                tool_call_id="web-1",
+                working_directory=str(Path.cwd()),
+            ),
+        )
+
+        self.assertTrue(web_result.ok)
+        self.assertEqual(web_result.output["results"][0]["source"], "fake")
+
+        with self.assertRaises(PolicyViolationError):
+            session.tool_executor.execute(
+                ToolCallRequest(
+                    id="write-3",
+                    name="write_file",
+                    arguments={"path": "blocked.txt", "content": "still blocked"},
+                ),
+                ToolContext(
+                    task_id="task-web",
+                    step_index=1,
+                    tool_call_id="write-3",
+                    working_directory=str(Path.cwd()),
+                ),
+            )
+
     def test_generated_summaries_are_persisted_into_state(self) -> None:
         temp_dir = make_workspace_temp_dir()
         try:

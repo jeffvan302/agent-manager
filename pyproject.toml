@@ -58,6 +58,7 @@ all = [
 [project.scripts]
 agent-manager = "agent_manager.cli.main:main"
 agent-manager-config = "agent_manager.cli.config_tool:main"
+tool-test = "agent_manager.cli.tool_test:main"
 
 [tool.setuptools.packages.find]
 include = ["agent_manager*"]

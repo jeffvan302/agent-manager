@@ -15,6 +15,7 @@ This folder documents the current `agent-manager` implementation and maps it bac
 ## Tools
 
 - [Tools Overview](./tools.md)
+- [Web Search Tool Setup](./tools-web-search.md)
 - [Build Your Own Tool](./tools-your-own.md)
 - [Retrieval Tool Setup](./tools-retrieval.md)
 - [TinyDB Tool Setup](./tools-tinydb.md)

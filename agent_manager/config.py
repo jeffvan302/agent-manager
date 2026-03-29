@@ -209,12 +209,68 @@ class ToolPolicyConfig:
 
 
 @dataclass(slots=True)
+class WebSearchToolConfig:
+    enabled: bool = True
+    backend: str = "duckduckgo"
+    endpoint: str | None = None
+    api_key_env: str | None = None
+    api_key: str | None = None
+    timeout_seconds: float = 20.0
+    max_results: int = 5
+    settings: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any] | None) -> "WebSearchToolConfig":
+        data = data or {}
+        return cls(
+            enabled=bool(data.get("enabled", True)),
+            backend=str(data.get("backend", "duckduckgo")),
+            endpoint=data.get("endpoint"),
+            api_key_env=data.get("api_key_env"),
+            api_key=data.get("api_key"),
+            timeout_seconds=float(data.get("timeout_seconds", 20.0)),
+            max_results=int(data.get("max_results", 5)),
+            settings=dict(data.get("settings", {})),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "enabled": self.enabled,
+            "backend": self.backend,
+            "endpoint": self.endpoint,
+            "api_key_env": self.api_key_env,
+            "api_key": self.api_key,
+            "timeout_seconds": self.timeout_seconds,
+            "max_results": self.max_results,
+            "settings": dict(self.settings),
+        }
+
+
+@dataclass(slots=True)
+class ToolsConfig:
+    web_search: WebSearchToolConfig = field(default_factory=WebSearchToolConfig)
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any] | None) -> "ToolsConfig":
+        data = data or {}
+        return cls(
+            web_search=WebSearchToolConfig.from_dict(data.get("web_search")),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "web_search": self.web_search.to_dict(),
+        }
+
+
+@dataclass(slots=True)
 class RuntimeConfig:
     provider: ProviderConfig = field(default_factory=ProviderConfig)
     runtime: RuntimeLimits = field(default_factory=RuntimeLimits)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     context: ContextConfig = field(default_factory=ContextConfig)
     tool_policy: ToolPolicyConfig = field(default_factory=ToolPolicyConfig)
+    tools: ToolsConfig = field(default_factory=ToolsConfig)
     profile: str = "readonly"
     system_prompt: str = "You are a helpful local-first agent runtime."
     state_backend: str = "sqlite"
@@ -231,6 +287,7 @@ class RuntimeConfig:
             logging=LoggingConfig.from_dict(data.get("logging")),
             context=ContextConfig.from_dict(data.get("context")),
             tool_policy=ToolPolicyConfig.from_dict(data.get("tool_policy")),
+            tools=ToolsConfig.from_dict(data.get("tools")),
             profile=str(data.get("profile", "readonly")),
             system_prompt=str(
                 data.get("system_prompt", "You are a helpful local-first agent runtime.")
@@ -369,6 +426,26 @@ class RuntimeConfig:
             self.tool_policy.denied_permissions = _parse_csv_list(
                 env[f"{prefix}DENIED_PERMISSIONS"]
             )
+        if f"{prefix}WEB_SEARCH_ENABLED" in env:
+            self.tools.web_search.enabled = _parse_bool(
+                env[f"{prefix}WEB_SEARCH_ENABLED"]
+            )
+        if f"{prefix}WEB_SEARCH_BACKEND" in env:
+            self.tools.web_search.backend = env[f"{prefix}WEB_SEARCH_BACKEND"].strip().lower()
+        if f"{prefix}WEB_SEARCH_ENDPOINT" in env:
+            self.tools.web_search.endpoint = env[f"{prefix}WEB_SEARCH_ENDPOINT"] or None
+        if f"{prefix}WEB_SEARCH_API_KEY_ENV" in env:
+            self.tools.web_search.api_key_env = env[f"{prefix}WEB_SEARCH_API_KEY_ENV"] or None
+        if f"{prefix}WEB_SEARCH_TIMEOUT_SECONDS" in env:
+            self.tools.web_search.timeout_seconds = _parse_float(
+                env[f"{prefix}WEB_SEARCH_TIMEOUT_SECONDS"],
+                "WEB_SEARCH_TIMEOUT_SECONDS",
+            )
+        if f"{prefix}WEB_SEARCH_MAX_RESULTS" in env:
+            self.tools.web_search.max_results = _parse_int(
+                env[f"{prefix}WEB_SEARCH_MAX_RESULTS"],
+                "WEB_SEARCH_MAX_RESULTS",
+            )
 
     def resolved_state_dir(self, base_path: str | Path | None = None) -> Path:
         path = Path(self.state_dir)
@@ -412,6 +489,7 @@ class RuntimeConfig:
             "logging": self.logging.to_dict(),
             "context": self.context.to_dict(),
             "tool_policy": self.tool_policy.to_dict(),
+            "tools": self.tools.to_dict(),
             "extra": dict(self.extra),
         }
 

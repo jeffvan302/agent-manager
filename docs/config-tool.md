@@ -35,8 +35,23 @@ The menu covers:
 - runtime limits
 - context settings
 - logging
+- tool implementation settings
 - tool policy
 - general profile and state storage settings
+
+In the tool policy section, the wizard now lists the known built-in tool names so users can see valid values while editing `allowed_tools` and `denied_tools`.
+
+In the tools section, the wizard can configure the built-in `web_search` tool backend, including:
+
+- `duckduckgo`
+- `serpapi`
+- `tavily`
+- `brave`
+
+For provider authentication, the wizard now supports both:
+
+- `provider.api_key_env` for an environment variable name such as `OPENAI_API_KEY`
+- `provider.settings.api_key` for storing the raw key directly in the TOML
 
 ## Provider testing
 
@@ -86,16 +101,21 @@ Editing tips:
 - type `?` while editing a field to see its help text again
 - type `-` on clearable fields to unset them
 
+Important provider note:
+
+- `provider.api_key_env` expects the name of an environment variable, not the secret value
+- if you want the secret stored directly in the file, use `provider.settings.api_key`
+
 ## Example workflow
 
 1. Run `agent-manager-config`
 2. Choose `3` to apply a provider template
 3. Choose `2` to edit provider values like model or base URL
 4. Choose `4` to test the provider connection
-5. Edit runtime and context settings
-6. Choose `10` to preview the TOML
-7. Choose `11` to save the file
-8. Choose `12` to view usage examples for the generated config
+5. Edit runtime, context, and tools settings
+6. Choose `11` to preview the TOML
+7. Choose `12` to save the file
+8. Choose `13` to view usage examples for the generated config
 
 ## Using the generated TOML file
 
@@ -115,6 +135,19 @@ session = AgentSession(config=config)
 result = session.run("Reply with OK")
 print(result.output_text)
 ```
+
+### Example TOML with raw API key
+
+```toml
+[provider]
+name = "openai"
+model = "gpt-4o-mini"
+
+[provider.settings]
+api_key = "your-openai-key"
+```
+
+This works because the provider layer checks `provider.settings.api_key` before falling back to `provider.api_key_env`.
 
 ### Environment variable
 
@@ -137,3 +170,4 @@ Use the wizard when you want to:
 - [Configuration](./configuration.md)
 - [Provider Configurations](./provider-configurations.md)
 - [Providers and Connectivity](./providers-and-connectivity.md)
+- [Web Search Tool Setup](./tools-web-search.md)

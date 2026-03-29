@@ -1,12 +1,21 @@
 
+[:python_version < "3.11"]
+tomli>=2.0
+
 [all]
 openai
 anthropic
 httpx
+pyyaml>=6.0
 chromadb
 faiss-cpu
+numpy
 psycopg2-binary
 sentence-transformers
+mcp
+langchain-core
+llama-index-core
+tinydb
 
 [anthropic]
 anthropic
@@ -16,6 +25,7 @@ chromadb
 
 [dev]
 pytest
+pytest-asyncio
 ruff
 
 [embeddings]
@@ -23,6 +33,7 @@ sentence-transformers
 
 [faiss]
 faiss-cpu
+numpy
 
 [langchain]
 langchain-core
@@ -43,3 +54,10 @@ openai
 psycopg2-binary
 
 [retrieval]
+numpy
+
+[tinydb]
+tinydb
+
+[yaml]
+pyyaml>=6.0

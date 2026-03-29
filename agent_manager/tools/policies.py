@@ -87,15 +87,17 @@ class PolicyEngine:
                 f"Tool '{spec.name}' is blocked by profile '{self.profile.name}'."
             )
 
+        explicitly_allowed = spec.name in self.profile.allowed_tools
+
         blocked_tags = set(spec.tags) & self.profile.denied_tags
-        if blocked_tags:
+        if blocked_tags and not explicitly_allowed:
             raise PolicyViolationError(
                 f"Tool '{spec.name}' uses blocked tags {sorted(blocked_tags)} "
                 f"under profile '{self.profile.name}'."
             )
 
         blocked_permissions = set(spec.permissions) & self.profile.denied_permissions
-        if blocked_permissions:
+        if blocked_permissions and not explicitly_allowed:
             raise PolicyViolationError(
                 f"Tool '{spec.name}' requires blocked permissions "
                 f"{sorted(blocked_permissions)} under profile '{self.profile.name}'."
@@ -119,6 +121,9 @@ class PolicyEngine:
                 )
 
         if self.profile.allow_all:
+            return
+
+        if explicitly_allowed:
             return
 
         if self.profile.allowed_permissions and not (
