@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
 from agent_manager.providers.base import (
@@ -15,7 +15,13 @@ from agent_manager.providers.base import (
     message_tool_calls,
     maybe_parse_structured_output,
 )
-from agent_manager.types import Message, ProviderRequest, ProviderResult, ToolCallRequest
+from agent_manager.types import (
+    Message,
+    ProviderRequest,
+    ProviderResult,
+    ProviderStreamEvent,
+    ToolCallRequest,
+)
 
 
 class OpenAICompatibleChatProvider(HTTPProvider):
@@ -25,7 +31,7 @@ class OpenAICompatibleChatProvider(HTTPProvider):
     requires_api_key = False
     capabilities = ProviderCapabilities(
         supports_tools=True,
-        supports_streaming=False,
+        supports_streaming=True,
         supports_structured_output=True,
         supports_system_messages=True,
     )
@@ -45,6 +51,127 @@ class OpenAICompatibleChatProvider(HTTPProvider):
                 request.structured_output,
             )
         return result
+
+    async def stream_generate(
+        self,
+        request: ProviderRequest,
+    ) -> AsyncIterator[ProviderStreamEvent]:
+        """Native SSE streaming for OpenAI-compatible endpoints."""
+        import asyncio
+        from urllib.request import Request, urlopen
+        from urllib.error import HTTPError
+
+        payload = self._build_payload(request)
+        payload["stream"] = True
+        url = self._build_url(self.endpoint_path)
+        headers = {**self.default_headers(), **self._auth_headers()}
+        body = json.dumps(payload).encode("utf-8")
+        req = Request(url=url, data=body, headers=headers, method="POST")
+
+        def _stream_blocking():
+            chunks = []
+            try:
+                with urlopen(req, timeout=120) as resp:
+                    buffer = ""
+                    for raw_line in resp:
+                        line = raw_line.decode("utf-8", errors="replace")
+                        buffer += line
+                        while "\n" in buffer:
+                            event_line, buffer = buffer.split("\n", 1)
+                            event_line = event_line.strip()
+                            if not event_line or not event_line.startswith("data: "):
+                                continue
+                            data_str = event_line[6:]
+                            if data_str == "[DONE]":
+                                return chunks
+                            try:
+                                chunk = json.loads(data_str)
+                                chunks.append(chunk)
+                            except json.JSONDecodeError:
+                                continue
+            except HTTPError as exc:
+                error_body = exc.read().decode("utf-8", errors="replace")
+                raise self._http_error_to_provider_error(
+                    exc.code, error_body, exc.headers,
+                ) from exc
+            return chunks
+
+        chunks = await asyncio.to_thread(_stream_blocking)
+
+        # Reassemble chunks into deltas and final result.
+        collected_text = ""
+        collected_tool_calls: dict[int, dict[str, Any]] = {}
+        finish_reason = None
+        usage = None
+
+        for chunk in chunks:
+            choices = chunk.get("choices", [])
+            if not choices:
+                if "usage" in chunk:
+                    usage = chunk["usage"]
+                continue
+            delta = choices[0].get("delta", {})
+            fr = choices[0].get("finish_reason")
+            if fr:
+                finish_reason = fr
+
+            # Text delta.
+            content = delta.get("content")
+            if content:
+                collected_text += content
+                yield ProviderStreamEvent(
+                    kind="text_delta",
+                    text=content,
+                    metadata={"provider": self.provider_name},
+                )
+
+            # Tool call deltas.
+            for tc in delta.get("tool_calls", []):
+                idx = tc.get("index", 0)
+                if idx not in collected_tool_calls:
+                    collected_tool_calls[idx] = {
+                        "id": tc.get("id", ""),
+                        "name": "",
+                        "arguments": "",
+                    }
+                if tc.get("id"):
+                    collected_tool_calls[idx]["id"] = tc["id"]
+                func = tc.get("function", {})
+                if func.get("name"):
+                    collected_tool_calls[idx]["name"] = func["name"]
+                if func.get("arguments"):
+                    collected_tool_calls[idx]["arguments"] += func["arguments"]
+
+        # Build final result.
+        tool_calls = []
+        for _idx in sorted(collected_tool_calls.keys()):
+            tc = collected_tool_calls[_idx]
+            tool_calls.append(
+                ToolCallRequest(
+                    id=ensure_tool_call_id(tc["id"]),
+                    name=tc["name"],
+                    arguments=coerce_arguments(tc["arguments"]),
+                )
+            )
+
+        stop = self._normalize_stop_reason(finish_reason, has_tool_calls=bool(tool_calls))
+        result = ProviderResult(
+            text=collected_text or None,
+            tool_calls=tool_calls,
+            stop_reason=stop,
+            usage=usage,
+            raw=None,
+            metadata={"provider": self.provider_name, "streamed": True},
+        )
+        if request.structured_output is not None:
+            result.structured_output = maybe_parse_structured_output(
+                result.text, request.structured_output,
+            )
+        yield ProviderStreamEvent(
+            kind="result",
+            result=result,
+            metadata={"provider": self.provider_name},
+        )
 
     def _auth_headers(self) -> dict[str, str]:
         headers: dict[str, str] = {}

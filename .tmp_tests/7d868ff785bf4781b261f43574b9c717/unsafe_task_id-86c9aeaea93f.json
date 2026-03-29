@@ -1,0 +1,126 @@
+{
+  "task_id": "../unsafe:task/id",
+  "goal": "sanitize me",
+  "step_index": 1,
+  "messages": [
+    {
+      "role": "user",
+      "content": "sanitize me",
+      "name": null,
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "sanitize me",
+      "name": null,
+      "metadata": {
+        "stop_reason": "completed"
+      }
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [],
+  "step_history": [
+    {
+      "step_index": 0,
+      "started_at": "2026-03-29T11:19:23.092851+00:00",
+      "provider": "echo",
+      "model": "echo-v1",
+      "prepared_context": {
+        "sections": [
+          "system_instructions",
+          "goal",
+          "current_plan",
+          "execution_constraints",
+          "recent_message_1"
+        ],
+        "dropped_sections": [],
+        "token_estimate": 122,
+        "pre_call_functions": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ],
+        "executed_steps": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ]
+      },
+      "request": {
+        "message_count": 2,
+        "tool_count": 6,
+        "structured_output": null
+      },
+      "provider_result": {
+        "stop_reason": "completed",
+        "usage": {
+          "input_messages": 2,
+          "model": "echo-v1"
+        },
+        "tool_calls": [],
+        "structured_output": null
+      },
+      "status": "completed",
+      "finished_at": "2026-03-29T11:19:23.101562+00:00"
+    }
+  ],
+  "pending_subgoals": [
+    "Understand the goal and identify the highest-priority context.",
+    "Assemble the most relevant context for the current task.",
+    "Produce the next best response or action with the available tools.",
+    "Review the result and stop when the goal is satisfied."
+  ],
+  "errors": [],
+  "checkpoint_timestamps": [
+    "2026-03-29T11:19:23.089044+00:00",
+    "2026-03-29T11:19:23.092858+00:00",
+    "2026-03-29T11:19:23.097049+00:00",
+    "2026-03-29T11:19:23.101567+00:00"
+  ],
+  "structured_output_spec": null,
+  "status": "completed",
+  "metadata": {
+    "current_plan": [
+      "Understand the goal and identify the highest-priority context.",
+      "Assemble the most relevant context for the current task.",
+      "Produce the next best response or action with the available tools.",
+      "Review the result and stop when the goal is satisfied."
+    ],
+    "planner": "Planner",
+    "prepared_context": {
+      "sections": [
+        "system_instructions",
+        "goal",
+        "current_plan",
+        "execution_constraints",
+        "recent_message_1"
+      ],
+      "dropped_sections": [],
+      "token_estimate": 122,
+      "pre_call_functions": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ],
+      "executed_steps": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ]
+    },
+    "consecutive_failures": 0
+  }
+}

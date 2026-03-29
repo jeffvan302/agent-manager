@@ -20,29 +20,39 @@ classifiers = [
   "Operating System :: OS Independent",
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dependencies = []
+dependencies = [
+  "tomli>=2.0; python_version < '3.11'",
+]
 
 [project.optional-dependencies]
 openai = ["openai"]
 anthropic = ["anthropic"]
 local-providers = ["httpx"]
-retrieval = []
+yaml = ["pyyaml>=6.0"]
+retrieval = ["numpy"]
 chroma = ["chromadb"]
-faiss = ["faiss-cpu"]
+faiss = ["faiss-cpu", "numpy"]
 pgvector = ["psycopg2-binary"]
 embeddings = ["sentence-transformers"]
 mcp = ["mcp"]
 langchain = ["langchain-core"]
 llamaindex = ["llama-index-core"]
-dev = ["pytest", "ruff"]
+tinydb = ["tinydb"]
+dev = ["pytest", "pytest-asyncio", "ruff"]
 all = [
   "openai",
   "anthropic",
   "httpx",
+  "pyyaml>=6.0",
   "chromadb",
   "faiss-cpu",
+  "numpy",
   "psycopg2-binary",
   "sentence-transformers",
+  "mcp",
+  "langchain-core",
+  "llama-index-core",
+  "tinydb",
 ]
 
 [project.scripts]
@@ -50,4 +60,3 @@ agent-manager = "agent_manager.cli.main:main"
 
 [tool.setuptools.packages.find]
 include = ["agent_manager*"]
-

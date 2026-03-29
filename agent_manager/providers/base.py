@@ -22,6 +22,7 @@ from agent_manager.errors import (
     ProviderRequestError,
     ProviderResourceExhaustedError,
 )
+from agent_manager.observability import emitter
 from agent_manager.types import (
     ProviderRequest,
     ProviderResult,
@@ -52,6 +53,11 @@ class BaseProvider(ABC):
     @abstractmethod
     async def generate(self, request: ProviderRequest) -> ProviderResult:
         """Run one normalized generation request."""
+
+    def generate_sync(self, request: ProviderRequest) -> ProviderResult:
+        """Synchronous wrapper around :meth:`generate`."""
+        from agent_manager.async_utils import run_sync
+        return run_sync(self.generate(request))
 
     async def stream_generate(
         self,
@@ -155,9 +161,27 @@ class HTTPProvider(BaseProvider):
                 # Resource exhaustion is never retried automatically.
                 raise
             except ProviderRequestError as exc:
+                emitter.provider_error(
+                    provider=self.provider_name,
+                    error=str(exc),
+                    retryable=exc.retryable,
+                    attempt=attempt,
+                )
                 if not exc.retryable or attempt >= max_attempts:
                     raise
-                await asyncio.sleep(base_backoff_seconds * attempt)
+                # Respect Retry-After header when available.
+                retry_after = getattr(exc, "retry_after_seconds", None)
+                if retry_after and isinstance(retry_after, (int, float)) and retry_after > 0:
+                    backoff = min(float(retry_after), 60.0)
+                else:
+                    backoff = base_backoff_seconds * (2 ** (attempt - 1))  # exponential
+                emitter.provider_retry(
+                    provider=self.provider_name,
+                    attempt=attempt + 1,
+                    backoff_seconds=backoff,
+                    reason=str(exc),
+                )
+                await asyncio.sleep(backoff)
 
         raise ProviderError(f"{self.provider_name} request failed after retry exhaustion.")
 

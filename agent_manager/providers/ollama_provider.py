@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
 from agent_manager.providers.base import (
@@ -15,7 +16,7 @@ from agent_manager.providers.base import (
     message_tool_calls,
     maybe_parse_structured_output,
 )
-from agent_manager.types import Message, ProviderRequest, ProviderResult, ToolCallRequest
+from agent_manager.types import Message, ProviderRequest, ProviderResult, ProviderStreamEvent, ToolCallRequest
 
 
 class OllamaProvider(HTTPProvider):
@@ -23,7 +24,7 @@ class OllamaProvider(HTTPProvider):
     default_base_url = "http://localhost:11434/api"
     capabilities = ProviderCapabilities(
         supports_tools=True,
-        supports_streaming=False,
+        supports_streaming=True,
         supports_structured_output=True,
         supports_system_messages=True,
     )
@@ -38,6 +39,108 @@ class OllamaProvider(HTTPProvider):
                 request.structured_output,
             )
         return result
+
+    async def stream_generate(
+        self, request: ProviderRequest
+    ) -> AsyncIterator[ProviderStreamEvent]:
+        payload = self._build_payload(request)
+        payload["stream"] = True
+
+        # Make blocking HTTP request in thread pool
+        def _make_request() -> str:
+            import urllib.request
+
+            url = self._build_url("chat")
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req) as response:
+                return response.read().decode("utf-8")
+
+        response_text = await asyncio.to_thread(_make_request)
+
+        # Parse newline-delimited JSON and aggregate results
+        accumulated_content: list[str] = []
+        final_response: dict[str, Any] | None = None
+
+        for line in response_text.strip().split("\n"):
+            if not line:
+                continue
+
+            chunk = json.loads(line)
+
+            # Yield text delta events
+            message = chunk.get("message", {})
+            if isinstance(message, Mapping):
+                content = message.get("content", "")
+                if content:
+                    accumulated_content.append(content)
+                    yield ProviderStreamEvent(kind="text_delta", text=content)
+
+            # On done, build final result
+            if chunk.get("done", False):
+                final_response = chunk
+                break
+
+        # Build and yield final result
+        if final_response:
+            full_text = "".join(accumulated_content)
+            final_message = final_response.get("message", {})
+            if not isinstance(final_message, Mapping):
+                final_message = {}
+
+            # Parse tool calls from final response
+            raw_tool_calls = final_message.get("tool_calls", [])
+            tool_calls: list[ToolCallRequest] = []
+            if isinstance(raw_tool_calls, list):
+                for index, item in enumerate(raw_tool_calls, start=1):
+                    if not isinstance(item, Mapping):
+                        continue
+                    function = item.get("function", {})
+                    if not isinstance(function, Mapping):
+                        function = {}
+                    tool_calls.append(
+                        ToolCallRequest(
+                            id=ensure_tool_call_id(
+                                str(item.get("id") or f"{self.provider_name}-call-{index}")
+                            ),
+                            name=str(function.get("name", "")),
+                            arguments=coerce_arguments(function.get("arguments", {})),
+                        )
+                    )
+
+            usage = {
+                key: value
+                for key, value in final_response.items()
+                if key.endswith("_count") or key.endswith("_duration")
+            }
+
+            result = ProviderResult(
+                text=full_text,
+                tool_calls=tool_calls,
+                stop_reason=self._normalize_stop_reason(
+                    final_response.get("done_reason"),
+                    has_tool_calls=bool(tool_calls),
+                    done=bool(final_response.get("done")),
+                ),
+                usage=usage or None,
+                raw=dict(final_response),
+                metadata={
+                    "provider": self.provider_name,
+                    "model": final_response.get("model"),
+                },
+            )
+
+            if request.structured_output is not None:
+                result.structured_output = maybe_parse_structured_output(
+                    result.text,
+                    request.structured_output,
+                )
+
+            yield ProviderStreamEvent(kind="result", result=result)
 
     def _build_payload(self, request: ProviderRequest) -> dict[str, Any]:
         payload: dict[str, Any] = {

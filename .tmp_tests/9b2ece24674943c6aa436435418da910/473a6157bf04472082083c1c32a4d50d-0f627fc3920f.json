@@ -1,0 +1,160 @@
+{
+  "task_id": "473a6157bf04472082083c1c32a4d50d",
+  "goal": "Return JSON",
+  "step_index": 1,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Return JSON",
+      "name": null,
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "{\"answer\":\"ok\"}",
+      "name": null,
+      "metadata": {
+        "stop_reason": "completed",
+        "structured_output": {
+          "answer": "ok"
+        }
+      }
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [],
+  "step_history": [
+    {
+      "step_index": 0,
+      "started_at": "2026-03-29T11:19:37.432766+00:00",
+      "provider": "structured-provider",
+      "model": "echo-v1",
+      "prepared_context": {
+        "sections": [
+          "system_instructions",
+          "goal",
+          "current_plan",
+          "execution_constraints",
+          "recent_message_1"
+        ],
+        "dropped_sections": [],
+        "token_estimate": 122,
+        "pre_call_functions": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ],
+        "executed_steps": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ]
+      },
+      "request": {
+        "message_count": 3,
+        "tool_count": 0,
+        "structured_output": {
+          "type": "json_schema",
+          "name": "answer",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "answer": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "answer"
+            ]
+          },
+          "strict": true,
+          "prompt": null
+        }
+      },
+      "provider_result": {
+        "stop_reason": "completed",
+        "usage": {
+          "input_tokens": 3,
+          "output_tokens": 2
+        },
+        "tool_calls": [],
+        "structured_output": {
+          "answer": "ok"
+        }
+      },
+      "status": "completed",
+      "finished_at": "2026-03-29T11:19:37.442421+00:00"
+    }
+  ],
+  "pending_subgoals": [
+    "review changes"
+  ],
+  "errors": [],
+  "checkpoint_timestamps": [
+    "2026-03-29T11:19:37.428752+00:00",
+    "2026-03-29T11:19:37.432773+00:00",
+    "2026-03-29T11:19:37.436798+00:00",
+    "2026-03-29T11:19:37.442427+00:00"
+  ],
+  "structured_output_spec": {
+    "type": "json_schema",
+    "name": "answer",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "answer": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "answer"
+      ]
+    },
+    "strict": true,
+    "prompt": null
+  },
+  "status": "completed",
+  "metadata": {
+    "current_plan": [
+      "Understand the goal and identify the highest-priority context.",
+      "Assemble the most relevant context for the current task.",
+      "Produce the next best response or action with the available tools.",
+      "Review the result and stop when the goal is satisfied."
+    ],
+    "planner": "Planner",
+    "prepared_context": {
+      "sections": [
+        "system_instructions",
+        "goal",
+        "current_plan",
+        "execution_constraints",
+        "recent_message_1"
+      ],
+      "dropped_sections": [],
+      "token_estimate": 122,
+      "pre_call_functions": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ],
+      "executed_steps": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ]
+    },
+    "consecutive_failures": 0
+  }
+}

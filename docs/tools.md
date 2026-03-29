@@ -1,0 +1,269 @@
+# Tools Overview
+
+This guide documents the built-in tools and the integration-style tools already supported by `agent-manager`.
+
+## How tools are registered
+
+By default, `AgentSession` registers the built-in tools when `include_builtin_tools=True`.
+
+```python
+from agent_manager import AgentSession, RuntimeConfig
+
+session = AgentSession(
+    config=RuntimeConfig.from_dict({"profile": "coding-agent"})
+)
+
+print(session.tools.names())
+```
+
+Important note:
+
+- `retrieve_documents` is only registered when the session has a retriever.
+
+## Built-in tools
+
+### `list_directory`
+
+Purpose:
+
+- list files and folders inside the allowed working-directory scope
+
+Typical arguments:
+
+```json
+{
+  "path": ".",
+  "recursive": true
+}
+```
+
+Example:
+
+```python
+from agent_manager import AgentSession, RuntimeConfig
+from agent_manager.tools.base import ToolContext
+from agent_manager.types import ToolCallRequest
+
+session = AgentSession(config=RuntimeConfig.from_dict({"profile": "coding-agent"}))
+result = session.tool_executor.execute(
+    ToolCallRequest(id="tool-1", name="list_directory", arguments={"path": ".", "recursive": False}),
+    ToolContext(task_id="demo", step_index=0, tool_call_id="tool-1", working_directory=str(session.working_directory)),
+)
+print(result.output)
+```
+
+### `read_file`
+
+Purpose:
+
+- read UTF-8 text files inside the allowed filesystem scope
+
+Typical arguments:
+
+```json
+{
+  "path": "requirements.md",
+  "max_chars": 4000
+}
+```
+
+### `write_file`
+
+Purpose:
+
+- write UTF-8 text files inside the allowed filesystem scope
+
+Typical arguments:
+
+```json
+{
+  "path": "notes/todo.md",
+  "content": "# Next steps",
+  "create_parents": true
+}
+```
+
+### `run_shell_command`
+
+Purpose:
+
+- run a shell command in the session working directory
+
+Typical arguments:
+
+```json
+{
+  "command": "python -m unittest discover -s tests",
+  "timeout_seconds": 120
+}
+```
+
+Notes:
+
+- the built-in tool blocks obviously dangerous command patterns
+- shell access can be denied by policy
+
+### `http_request`
+
+Purpose:
+
+- send a raw HTTP request and capture status, headers, and body
+
+Typical arguments:
+
+```json
+{
+  "url": "https://httpbin.org/get",
+  "method": "GET",
+  "headers": {
+    "Accept": "application/json"
+  }
+}
+```
+
+### `web_search`
+
+Purpose:
+
+- search the web through the configured search backend
+
+Default backend:
+
+- `DuckDuckGoWebSearcher`
+
+Typical arguments:
+
+```json
+{
+  "query": "TinyDB Python examples",
+  "limit": 5
+}
+```
+
+### `retrieve_documents`
+
+Purpose:
+
+- retrieve indexed chunks from an attached retriever
+
+Typical arguments:
+
+```json
+{
+  "query": "context pipeline requirements",
+  "top_k": 3,
+  "metadata_filter": {
+    "source": "requirements.md"
+  }
+}
+```
+
+Setup guide:
+
+- [Retrieval Tool Setup](./tools-retrieval.md)
+
+## More involved tool setups
+
+These are the tool setups that deserve their own guides.
+
+- [Retrieval Tool Setup](./tools-retrieval.md)
+- [TinyDB Tool Setup](./tools-tinydb.md)
+- [Build Your Own Tool](./tools-your-own.md)
+
+## Integration and plugin tools
+
+The codebase also supports plugin-style tool or retrieval integrations.
+
+### TinyDB
+
+- plugin: `TinyDBToolsPlugin`
+- adapter: `TinyDBToolAdapter`
+- guide: [TinyDB Tool Setup](./tools-tinydb.md)
+
+### OpenAPI operations
+
+- plugin: `OpenAPIToolsPlugin`
+- adapter: `OpenAPIToolAdapter`
+- lets you expose API operations as regular tools
+
+### MCP tools
+
+- plugin: `MCPToolsPlugin`
+- adapter: `MCPToolAdapter`
+- lets MCP server tools appear as runtime tools
+
+### LangChain tools
+
+- plugin: `LangChainToolsPlugin`
+- adapter: `LangChainToolAdapter`
+
+### Retrieval integrations
+
+- `LlamaIndexRetrievalPlugin`
+- `ChromaRetrievalPlugin`
+- `FAISSRetrievalPlugin`
+- `PgVectorRetrievalPlugin`
+
+## Example: direct tool execution
+
+Tools are usually called by the model, but you can execute them directly for testing.
+
+```python
+from agent_manager import AgentSession, RuntimeConfig
+from agent_manager.tools.base import ToolContext
+from agent_manager.types import ToolCallRequest
+
+session = AgentSession(config=RuntimeConfig.from_dict({"profile": "coding-agent"}))
+
+call = ToolCallRequest(
+    id="manual-1",
+    name="http_request",
+    arguments={
+        "url": "https://httpbin.org/get",
+        "method": "GET",
+    },
+)
+context = ToolContext(
+    task_id="manual-tool-test",
+    step_index=0,
+    tool_call_id="manual-1",
+    working_directory=str(session.working_directory),
+)
+
+result = session.tool_executor.execute(call, context)
+print(result.ok)
+print(result.output)
+```
+
+## Tool policies
+
+Tool access is shaped by the runtime profile and optional policy overrides.
+
+Default profile names in the code:
+
+- `readonly`
+- `local-dev`
+- `coding-agent`
+- `unrestricted-lab`
+
+Example policy override:
+
+```python
+from agent_manager import RuntimeConfig
+
+config = RuntimeConfig.from_dict(
+    {
+        "profile": "coding-agent",
+        "tool_policy": {
+            "denied_tools": ["write_file"],
+            "denied_permissions": ["process:execute"],
+        },
+    }
+)
+```
+
+## Next docs
+
+- [Build Your Own Tool](./tools-your-own.md)
+- [Context Manager](./context-manager.md)
+- [Advanced Two-Agent Coding Example](./advanced-two-agent-coding.md)

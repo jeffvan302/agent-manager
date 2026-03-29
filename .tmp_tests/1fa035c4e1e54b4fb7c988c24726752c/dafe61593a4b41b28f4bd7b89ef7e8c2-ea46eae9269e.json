@@ -1,0 +1,251 @@
+{
+  "task_id": "dafe61593a4b41b28f4bd7b89ef7e8c2",
+  "goal": "Run tool flow",
+  "step_index": 2,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Run tool flow",
+      "name": null,
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "name": null,
+      "metadata": {
+        "stop_reason": "tool_call",
+        "tool_calls": [
+          {
+            "id": "provider-call-123",
+            "name": "capture_context",
+            "arguments": {
+              "value": "hello"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "role": "tool",
+      "content": "{\"arguments\": {\"value\": \"hello\"}, \"tool_call_id\": \"provider-call-123\"}",
+      "name": "capture_context",
+      "metadata": {
+        "tool_call_id": "provider-call-123",
+        "is_error": false
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "done",
+      "name": null,
+      "metadata": {
+        "stop_reason": "completed"
+      }
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [
+    {
+      "tool_name": "capture_context",
+      "ok": true,
+      "output": {
+        "arguments": {
+          "value": "hello"
+        },
+        "tool_call_id": "provider-call-123"
+      },
+      "error": null,
+      "metadata": {
+        "attempts": 1,
+        "tool_call_id": "provider-call-123"
+      }
+    }
+  ],
+  "step_history": [
+    {
+      "step_index": 0,
+      "started_at": "2026-03-29T11:19:37.822950+00:00",
+      "provider": "test-tool-caller",
+      "model": "echo-v1",
+      "prepared_context": {
+        "sections": [
+          "system_instructions",
+          "goal",
+          "current_plan",
+          "execution_constraints",
+          "recent_message_1"
+        ],
+        "dropped_sections": [],
+        "token_estimate": 123,
+        "pre_call_functions": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ],
+        "executed_steps": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ]
+      },
+      "request": {
+        "message_count": 2,
+        "tool_count": 7,
+        "structured_output": null
+      },
+      "provider_result": {
+        "stop_reason": "tool_call",
+        "usage": null,
+        "tool_calls": [
+          {
+            "id": "provider-call-123",
+            "name": "capture_context",
+            "arguments": {
+              "value": "hello"
+            }
+          }
+        ],
+        "structured_output": null
+      },
+      "tool_calls": [
+        {
+          "id": "provider-call-123",
+          "name": "capture_context",
+          "arguments": {
+            "value": "hello"
+          }
+        }
+      ],
+      "tool_results": [
+        {
+          "tool_name": "capture_context",
+          "ok": true,
+          "output": {
+            "arguments": {
+              "value": "hello"
+            },
+            "tool_call_id": "provider-call-123"
+          },
+          "error": null,
+          "metadata": {
+            "attempts": 1,
+            "tool_call_id": "provider-call-123"
+          }
+        }
+      ],
+      "status": "tool_call",
+      "finished_at": "2026-03-29T11:19:37.833790+00:00"
+    },
+    {
+      "step_index": 1,
+      "started_at": "2026-03-29T11:19:37.833794+00:00",
+      "provider": "test-tool-caller",
+      "model": "echo-v1",
+      "prepared_context": {
+        "sections": [
+          "system_instructions",
+          "goal",
+          "current_plan",
+          "execution_constraints",
+          "recent_message_1",
+          "recent_message_2",
+          "recent_message_3"
+        ],
+        "dropped_sections": [],
+        "token_estimate": 148,
+        "pre_call_functions": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ],
+        "executed_steps": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ]
+      },
+      "request": {
+        "message_count": 4,
+        "tool_count": 7,
+        "structured_output": null
+      },
+      "provider_result": {
+        "stop_reason": "completed",
+        "usage": null,
+        "tool_calls": [],
+        "structured_output": null
+      },
+      "status": "completed",
+      "finished_at": "2026-03-29T11:19:37.848183+00:00"
+    }
+  ],
+  "pending_subgoals": [
+    "Understand the goal and identify the highest-priority context.",
+    "Assemble the most relevant context for the current task.",
+    "Produce the next best response or action with the available tools.",
+    "Review the result and stop when the goal is satisfied."
+  ],
+  "errors": [],
+  "checkpoint_timestamps": [
+    "2026-03-29T11:19:37.818529+00:00",
+    "2026-03-29T11:19:37.822959+00:00",
+    "2026-03-29T11:19:37.827271+00:00",
+    "2026-03-29T11:19:37.833798+00:00",
+    "2026-03-29T11:19:37.840595+00:00",
+    "2026-03-29T11:19:37.848194+00:00"
+  ],
+  "structured_output_spec": null,
+  "status": "completed",
+  "metadata": {
+    "current_plan": [
+      "Understand the goal and identify the highest-priority context.",
+      "Assemble the most relevant context for the current task.",
+      "Produce the next best response or action with the available tools.",
+      "Review the result and stop when the goal is satisfied."
+    ],
+    "planner": "Planner",
+    "prepared_context": {
+      "sections": [
+        "system_instructions",
+        "goal",
+        "current_plan",
+        "execution_constraints",
+        "recent_message_1",
+        "recent_message_2",
+        "recent_message_3"
+      ],
+      "dropped_sections": [],
+      "token_estimate": 148,
+      "pre_call_functions": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ],
+      "executed_steps": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ]
+    },
+    "consecutive_failures": 0
+  }
+}

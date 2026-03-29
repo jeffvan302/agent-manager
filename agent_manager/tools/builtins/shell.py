@@ -3,9 +3,25 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Any
 
 from agent_manager.tools.base import BaseTool, ToolContext, ToolResult, ToolSpec
+
+
+_DANGEROUS_PATTERNS: set[str] = {
+    "rm -rf /", "rm -rf ~", "mkfs", "dd if=", ":(){", "chmod -R 777 /",
+    "curl | sh", "curl | bash", "wget | sh", "wget | bash",
+    "> /dev/sda", "shutdown", "reboot", "init 0", "init 6",
+}
+
+_DANGEROUS_RE = re.compile(
+    r"\b(rm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?/(?:$|\s))"
+    r"|(\bsudo\s+rm\b)"
+    r"|(\bformat\s+[A-Za-z]:)"
+    r"|(\bmkfs\b)",
+    re.IGNORECASE,
+)
 
 
 class RunShellCommandTool(BaseTool):
@@ -43,6 +59,23 @@ class RunShellCommandTool(BaseTool):
                 ok=False,
                 output={},
                 error="Command must not be empty.",
+            )
+
+        # Check for dangerous commands.
+        for pattern in _DANGEROUS_PATTERNS:
+            if pattern in command.lower():
+                return ToolResult(
+                    tool_name=self.spec.name,
+                    ok=False,
+                    output={},
+                    error="Command blocked by safety filter: matches dangerous pattern.",
+                )
+        if _DANGEROUS_RE.search(command):
+            return ToolResult(
+                tool_name=self.spec.name,
+                ok=False,
+                output={},
+                error="Command blocked by safety filter: matches dangerous pattern.",
             )
 
         timeout = float(arguments.get("timeout_seconds", self.spec.timeout_seconds))

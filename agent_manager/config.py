@@ -8,6 +8,10 @@ try:
     import tomllib
 except ModuleNotFoundError:
     import tomli as tomllib  # type: ignore[no-redefine]
+try:
+    import yaml as _yaml
+except ModuleNotFoundError:
+    _yaml = None  # type: ignore[assignment]
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
@@ -146,11 +150,30 @@ class ContextConfig:
 
 
 @dataclass(slots=True)
+class ToolPolicyConfig:
+    allowed_tools: list[str] = field(default_factory=list)
+    denied_tools: list[str] = field(default_factory=list)
+    denied_tags: list[str] = field(default_factory=list)
+    denied_permissions: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any] | None) -> "ToolPolicyConfig":
+        data = data or {}
+        return cls(
+            allowed_tools=list(data.get("allowed_tools", [])),
+            denied_tools=list(data.get("denied_tools", [])),
+            denied_tags=list(data.get("denied_tags", [])),
+            denied_permissions=list(data.get("denied_permissions", [])),
+        )
+
+
+@dataclass(slots=True)
 class RuntimeConfig:
     provider: ProviderConfig = field(default_factory=ProviderConfig)
     runtime: RuntimeLimits = field(default_factory=RuntimeLimits)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     context: ContextConfig = field(default_factory=ContextConfig)
+    tool_policy: ToolPolicyConfig = field(default_factory=ToolPolicyConfig)
     profile: str = "readonly"
     system_prompt: str = "You are a helpful local-first agent runtime."
     state_backend: str = "sqlite"
@@ -166,6 +189,7 @@ class RuntimeConfig:
             runtime=RuntimeLimits.from_dict(data.get("runtime")),
             logging=LoggingConfig.from_dict(data.get("logging")),
             context=ContextConfig.from_dict(data.get("context")),
+            tool_policy=ToolPolicyConfig.from_dict(data.get("tool_policy")),
             profile=str(data.get("profile", "readonly")),
             system_prompt=str(
                 data.get("system_prompt", "You are a helpful local-first agent runtime.")
@@ -198,9 +222,15 @@ class RuntimeConfig:
             data = json.loads(file_path.read_text(encoding="utf-8"))
         elif file_path.suffix.lower() in {".toml", ".tml"}:
             data = tomllib.loads(file_path.read_text(encoding="utf-8"))
+        elif file_path.suffix.lower() in {".yaml", ".yml"}:
+            if _yaml is None:
+                raise ConfigurationError(
+                    "PyYAML is required for YAML config files. Install with: pip install pyyaml"
+                )
+            data = _yaml.safe_load(file_path.read_text(encoding="utf-8"))
         else:
             raise ConfigurationError(
-                f"Unsupported config format for {file_path}. Use .json or .toml."
+                f"Unsupported config format for {file_path}. Use .json, .toml, or .yaml."
             )
 
         config = cls.from_dict(data)
@@ -281,6 +311,22 @@ class RuntimeConfig:
         if f"{prefix}CONTEXT_PRE_CALL_FUNCTIONS" in env:
             self.context.pre_call_functions = _parse_csv_list(
                 env[f"{prefix}CONTEXT_PRE_CALL_FUNCTIONS"]
+            )
+        if f"{prefix}DENIED_TOOLS" in env:
+            self.tool_policy.denied_tools = _parse_csv_list(
+                env[f"{prefix}DENIED_TOOLS"]
+            )
+        if f"{prefix}ALLOWED_TOOLS" in env:
+            self.tool_policy.allowed_tools = _parse_csv_list(
+                env[f"{prefix}ALLOWED_TOOLS"]
+            )
+        if f"{prefix}DENIED_TAGS" in env:
+            self.tool_policy.denied_tags = _parse_csv_list(
+                env[f"{prefix}DENIED_TAGS"]
+            )
+        if f"{prefix}DENIED_PERMISSIONS" in env:
+            self.tool_policy.denied_permissions = _parse_csv_list(
+                env[f"{prefix}DENIED_PERMISSIONS"]
             )
 
     def resolved_state_dir(self, base_path: str | Path | None = None) -> Path:

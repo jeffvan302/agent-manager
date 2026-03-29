@@ -1,0 +1,6 @@
+[provider]
+name = "echo"
+model = "test-model"
+
+[runtime]
+max_steps = 3

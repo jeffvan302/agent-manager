@@ -15,7 +15,7 @@ from agent_manager.async_utils import run_sync
 from agent_manager.config import RuntimeConfig
 from agent_manager.context.pipeline import PreCallPipeline
 from agent_manager.errors import PolicyViolationError, ProviderResourceExhaustedError
-from agent_manager.observability import get_logger
+from agent_manager.observability import emitter
 from agent_manager.providers.base import BaseProvider, maybe_parse_structured_output
 from agent_manager.runtime.events import RuntimeEvent
 from agent_manager.runtime.planner import Planner
@@ -63,7 +63,6 @@ class AgentLoop:
         )
         self.tool_context_metadata = dict(tool_context_metadata or {})
         self.planner = planner or Planner()
-        self.logger = get_logger("runtime.loop")
         self._interrupt_requested = False
 
     async def run_async(
@@ -180,6 +179,7 @@ class AgentLoop:
 
             self.checkpoints.save(state)
             prepared = await self.context_pipeline.prepare_async(state, self.config)
+            await self._persist_summaries(state, prepared, events, event_sink)
             state.metadata["prepared_context"] = {
                 "sections": [section.key for section in prepared.sections],
                 "dropped_sections": list(prepared.dropped_sections),
@@ -225,16 +225,12 @@ class AgentLoop:
                 "tool_count": len(request.tools),
                 "structured_output": spec.to_dict() if spec is not None else None,
             }
-            self.logger.info(
-                "provider request",
-                extra={
-                    "event": "provider.request",
-                    "details": {
-                        "provider": self.provider.provider_name,
-                        "task_id": state.task_id,
-                        "step_index": state.step_index,
-                    },
-                },
+            emitter.provider_request(
+                provider=self.provider.provider_name,
+                model=request.model,
+                message_count=len(request.messages),
+                tool_count=len(request.tools),
+                token_estimate=prepared.token_estimate,
             )
             await self._emit_event(
                 events,
@@ -250,6 +246,7 @@ class AgentLoop:
                 event_sink,
             )
 
+            provider_started_at = time.perf_counter()
             try:
                 last_result = await self._generate_with_timeout(
                     request,
@@ -360,6 +357,14 @@ class AgentLoop:
                 "tool_calls": [call.to_dict() for call in last_result.tool_calls],
                 "structured_output": last_result.structured_output,
             }
+            emitter.provider_response(
+                provider=self.provider.provider_name,
+                model=request.model,
+                stop_reason=last_result.stop_reason,
+                usage=last_result.usage,
+                duration_ms=(time.perf_counter() - provider_started_at) * 1000.0,
+                has_tool_calls=bool(last_result.tool_calls),
+            )
             await self._emit_event(
                 events,
                 RuntimeEvent(
@@ -839,6 +844,34 @@ class AgentLoop:
                     "step_index": state.step_index,
                     "planner": type(self.planner).__name__,
                     "plan": list(plan),
+                },
+            ),
+            event_sink,
+        )
+
+    async def _persist_summaries(
+        self,
+        state: LoopState,
+        prepared: Any,
+        events: list[RuntimeEvent],
+        event_sink: EventSink | None,
+    ) -> None:
+        summaries = [
+            section.content
+            for section in getattr(prepared, "sections", [])
+            if getattr(section, "key", "") == "summary" and getattr(section, "content", "")
+        ]
+        if not summaries or summaries == state.summaries:
+            return
+        state.summaries = [str(summary) for summary in summaries]
+        await self._emit_event(
+            events,
+            RuntimeEvent(
+                "context.summarized",
+                {
+                    "task_id": state.task_id,
+                    "step_index": state.step_index,
+                    "summary_count": len(state.summaries),
                 },
             ),
             event_sink,

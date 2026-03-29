@@ -15,6 +15,7 @@ from agent_manager.context.sections import PreparedTurn
 from agent_manager.context.summarizer import SimpleSummarizer
 from agent_manager.memory.base import BaseMemoryStore
 from agent_manager.memory.retrieval import BaseRetriever
+from agent_manager.observability import emitter, timed
 from agent_manager.types import ContextSection, LoopState, Message
 
 
@@ -118,7 +119,11 @@ class ContextAssembler:
         state: LoopState,
         config: RuntimeConfig,
     ) -> ContextSection | None:
-        if state.summaries:
+        history_window = max(config.context.history_window, 0)
+        trigger = max(config.context.summary_trigger_messages, history_window)
+        if len(state.messages) <= trigger or history_window <= 0:
+            if not state.summaries:
+                return None
             return self._estimated_section(
                 ContextSection(
                     key="summary",
@@ -129,14 +134,25 @@ class ContextAssembler:
                 config,
             )
 
-        history_window = max(config.context.history_window, 0)
-        trigger = max(config.context.summary_trigger_messages, history_window)
-        if len(state.messages) <= trigger or history_window <= 0:
-            return None
-
-        summary = self.summarizer.summarize_messages(state.messages[:-history_window])
+        with timed() as timing:
+            summary = self.summarizer.summarize_messages(state.messages[:-history_window])
         if not summary:
-            return None
+            if not state.summaries:
+                return None
+            return self._estimated_section(
+                ContextSection(
+                    key="summary",
+                    title="Summary",
+                    content="\n".join(state.summaries),
+                    priority=80,
+                ),
+                config,
+            )
+        emitter.summarization(
+            input_messages=len(state.messages[:-history_window]),
+            output_length=len(summary),
+            duration_ms=timing["duration_ms"],
+        )
 
         return self._estimated_section(
             ContextSection(
@@ -161,11 +177,17 @@ class ContextAssembler:
         if not query:
             return []
 
-        results = await asyncio.to_thread(
-            retriever.retrieve,
-            query,
-            max(config.context.retrieval_top_k, 0),
-            None,
+        with timed() as timing:
+            results = await asyncio.to_thread(
+                retriever.retrieve,
+                query,
+                max(config.context.retrieval_top_k, 0),
+                None,
+            )
+        emitter.retrieval(
+            query=query,
+            results_count=len(results),
+            duration_ms=timing["duration_ms"],
         )
         sections = [
             ContextSection(

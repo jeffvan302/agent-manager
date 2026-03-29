@@ -23,7 +23,12 @@ from agent_manager.state.store import JsonFileStateStore, SqliteStateStore, Stat
 from agent_manager.tools.builtins import register_builtin_tools
 from agent_manager.tools.base import BaseTool
 from agent_manager.tools.executor import ToolExecutor
-from agent_manager.tools.policies import ApprovalHook, PolicyEngine
+from agent_manager.tools.policies import (
+    DEFAULT_PROFILES,
+    ApprovalHook,
+    PolicyEngine,
+    ToolPolicyProfile,
+)
 from agent_manager.tools.registry import ToolRegistry
 from agent_manager.tools.web_search import BaseWebSearcher
 from agent_manager.types import AgentRunResult, StructuredOutputSpec
@@ -70,10 +75,7 @@ class AgentSession:
             web_searcher=web_searcher,
             include_builtin_tools=include_builtin_tools,
         )
-        self.policy_engine = PolicyEngine(
-            self.config.profile,
-            approval_hook=approval_hook,
-        )
+        self.policy_engine = self._build_policy_engine(approval_hook=approval_hook)
         self.tool_executor = ToolExecutor(self.tools, self.policy_engine)
         self.state_store = state_store or self._build_state_store()
         self.checkpoints = CheckpointManager(self.state_store)
@@ -223,8 +225,56 @@ class AgentSession:
     def _build_state_store(self) -> StateStore:
         backend = self.config.resolved_checkpoint_backend()
         if backend == "sqlite":
-            return SqliteStateStore(self.config.resolved_state_path())
+            try:
+                return SqliteStateStore(self.config.resolved_state_path())
+            except Exception:
+                self.logger.warning(
+                    "SQLite state store unavailable (filesystem may not support locking), "
+                    "falling back to JSON file store."
+                )
+                return JsonFileStateStore(self.config.resolved_state_dir())
         return JsonFileStateStore(self.config.resolved_state_dir())
+
+    def _build_policy_engine(
+        self,
+        *,
+        approval_hook: ApprovalHook | None,
+    ) -> PolicyEngine:
+        base_profile = DEFAULT_PROFILES.get(
+            self.config.profile,
+            ToolPolicyProfile(name=self.config.profile, allow_all=True),
+        )
+        configured_policy = self.config.tool_policy
+        configured_allowed_tools = {
+            tool_name
+            for tool_name in configured_policy.allowed_tools
+            if str(tool_name).strip()
+        }
+        profile = ToolPolicyProfile(
+            name=base_profile.name,
+            allow_all=base_profile.allow_all and not configured_allowed_tools,
+            allowed_tools=set(base_profile.allowed_tools) | set(configured_allowed_tools),
+            denied_tools=set(base_profile.denied_tools) | {
+                tool_name
+                for tool_name in configured_policy.denied_tools
+                if str(tool_name).strip()
+            },
+            denied_tags=set(base_profile.denied_tags) | {
+                tag
+                for tag in configured_policy.denied_tags
+                if str(tag).strip()
+            },
+            allowed_permissions=set(base_profile.allowed_permissions),
+            denied_permissions={
+                *base_profile.denied_permissions,
+                *(
+                permission
+                for permission in configured_policy.denied_permissions
+                if str(permission).strip()
+                ),
+            },
+        )
+        return PolicyEngine(profile, approval_hook=approval_hook)
 
     def register_tool(self, tool: BaseTool, *, replace: bool = True) -> None:
         self.tools.register(tool, replace=replace)

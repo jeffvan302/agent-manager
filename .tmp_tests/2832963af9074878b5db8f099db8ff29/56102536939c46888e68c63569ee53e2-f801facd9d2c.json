@@ -1,0 +1,154 @@
+{
+  "task_id": "56102536939c46888e68c63569ee53e2",
+  "goal": "policy test",
+  "step_index": 0,
+  "messages": [
+    {
+      "role": "user",
+      "content": "policy test",
+      "name": null,
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "name": null,
+      "metadata": {
+        "stop_reason": "tool_call",
+        "tool_calls": [
+          {
+            "id": "blocked_tool-call-1",
+            "name": "blocked_tool",
+            "arguments": {}
+          }
+        ]
+      }
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [],
+  "step_history": [
+    {
+      "step_index": 0,
+      "started_at": "2026-03-29T11:19:22.844308+00:00",
+      "provider": "single-tool-caller",
+      "model": "echo-v1",
+      "prepared_context": {
+        "sections": [
+          "system_instructions",
+          "goal",
+          "current_plan",
+          "execution_constraints",
+          "recent_message_1"
+        ],
+        "dropped_sections": [],
+        "token_estimate": 104,
+        "pre_call_functions": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ],
+        "executed_steps": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ]
+      },
+      "request": {
+        "message_count": 2,
+        "tool_count": 7,
+        "structured_output": null
+      },
+      "provider_result": {
+        "stop_reason": "tool_call",
+        "usage": null,
+        "tool_calls": [
+          {
+            "id": "blocked_tool-call-1",
+            "name": "blocked_tool",
+            "arguments": {}
+          }
+        ],
+        "structured_output": null
+      },
+      "tool_calls": [
+        {
+          "id": "blocked_tool-call-1",
+          "name": "blocked_tool",
+          "arguments": {}
+        }
+      ],
+      "status": "policy_violation",
+      "error": "Tool 'blocked_tool' uses blocked tags ['shell'] under profile 'readonly'.",
+      "finished_at": "2026-03-29T11:19:22.852732+00:00"
+    }
+  ],
+  "pending_subgoals": [
+    "Understand the goal and identify the highest-priority context.",
+    "Inspect the affected files and update the implementation.",
+    "Review the result and stop when the goal is satisfied."
+  ],
+  "errors": [
+    {
+      "type": "policy_violation",
+      "message": "Tool 'blocked_tool' uses blocked tags ['shell'] under profile 'readonly'.",
+      "step_index": 0,
+      "timestamp": "2026-03-29T11:19:22.852728+00:00",
+      "metadata": {
+        "tool_name": "blocked_tool",
+        "tool_call_id": "blocked_tool-call-1"
+      }
+    }
+  ],
+  "checkpoint_timestamps": [
+    "2026-03-29T11:19:22.840479+00:00",
+    "2026-03-29T11:19:22.844314+00:00",
+    "2026-03-29T11:19:22.848396+00:00",
+    "2026-03-29T11:19:22.852739+00:00"
+  ],
+  "structured_output_spec": null,
+  "status": "policy_violation",
+  "metadata": {
+    "current_plan": [
+      "Understand the goal and identify the highest-priority context.",
+      "Inspect the affected files and update the implementation.",
+      "Review the result and stop when the goal is satisfied."
+    ],
+    "planner": "Planner",
+    "prepared_context": {
+      "sections": [
+        "system_instructions",
+        "goal",
+        "current_plan",
+        "execution_constraints",
+        "recent_message_1"
+      ],
+      "dropped_sections": [],
+      "token_estimate": 104,
+      "pre_call_functions": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ],
+      "executed_steps": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ]
+    },
+    "consecutive_failures": 0,
+    "last_error": "Tool 'blocked_tool' uses blocked tags ['shell'] under profile 'readonly'."
+  }
+}

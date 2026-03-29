@@ -17,6 +17,7 @@ from agent_manager.context.functions import (
 from agent_manager.context.sections import PreparedTurn
 from agent_manager.memory.base import BaseMemoryStore
 from agent_manager.memory.retrieval import BaseRetriever
+from agent_manager.observability import emitter
 from agent_manager.types import LoopState
 
 
@@ -68,6 +69,11 @@ class PreCallPipeline:
             prepared.token_estimate = self.assembler._token_counter_for(config).count_messages(
                 prepared.messages
             )
+        emitter.context_assembled(
+            section_count=len(prepared.sections),
+            token_estimate=prepared.token_estimate,
+            dropped_sections=list(prepared.dropped_sections),
+        )
         return prepared
 
     def prepare(self, state: LoopState, config: RuntimeConfig) -> PreparedTurn:

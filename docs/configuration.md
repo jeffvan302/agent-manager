@@ -1,0 +1,191 @@
+# Configuration
+
+`agent-manager` can be configured from:
+
+- Python dictionaries through `RuntimeConfig.from_dict()`
+- environment variables through `RuntimeConfig.from_env()`
+- config files through `RuntimeConfig.from_file()` or `load_config()`
+
+Supported config file formats:
+
+- TOML
+- JSON
+- YAML
+
+## Minimal config
+
+```toml
+profile = "readonly"
+system_prompt = "You are a helpful local-first agent runtime."
+
+[provider]
+name = "echo"
+model = "echo-v1"
+```
+
+## Recommended local-dev config
+
+```toml
+profile = "local-dev"
+system_prompt = "You are a careful coding assistant."
+state_backend = "sqlite"
+state_path = ".agent_manager/state.sqlite3"
+
+[provider]
+name = "ollama"
+model = "llama3.1"
+base_url = "http://localhost:11434"
+
+[runtime]
+max_steps = 8
+timeout_seconds = 300
+max_consecutive_failures = 3
+max_context_tokens = 8192
+max_output_tokens = 1024
+
+[context]
+history_window = 8
+summary_trigger_messages = 8
+retrieval_top_k = 3
+max_memory_facts = 5
+pre_call_functions = [
+  "collect_recent_messages",
+  "summarize_history",
+  "inject_retrieval",
+  "inject_memory_facts",
+  "apply_token_budget",
+  "finalize_messages",
+]
+```
+
+## Provider config
+
+Provider fields currently supported by `ProviderConfig`:
+
+- `name`
+- `model`
+- `base_url`
+- `api_key_env`
+- `settings`
+
+Example:
+
+```toml
+[provider]
+name = "openai"
+model = "gpt-4o-mini"
+api_key_env = "OPENAI_API_KEY"
+
+[provider.settings]
+request_timeout_seconds = 60
+request_retries = 3
+request_retry_backoff_seconds = 0.5
+max_output_tokens = 1200
+model_context_tokens = 128000
+```
+
+## Runtime limits
+
+`runtime` controls the loop:
+
+- `max_steps`
+- `timeout_seconds`
+- `max_consecutive_failures`
+- `max_context_tokens`
+- `max_output_tokens`
+
+## Context config
+
+`context` controls the pre-call pipeline:
+
+- `history_window`
+- `summary_trigger_messages`
+- `retrieval_top_k`
+- `max_memory_facts`
+- `pre_call_functions`
+
+## Tool policy config
+
+`tool_policy` can tighten or loosen the active runtime profile.
+
+```toml
+[tool_policy]
+allowed_tools = []
+denied_tools = ["write_file"]
+denied_tags = ["network"]
+denied_permissions = ["process:execute"]
+```
+
+## State backend
+
+Supported backends in the current implementation:
+
+- `sqlite`
+- `json`
+
+Relevant fields:
+
+- `state_backend`
+- `state_path`
+- `state_dir`
+
+Example:
+
+```toml
+state_backend = "json"
+state_dir = ".agent_manager/state"
+```
+
+## Environment variable overrides
+
+The runtime reads `AGENT_MANAGER_*` environment variables.
+
+Common ones:
+
+- `AGENT_MANAGER_PROVIDER`
+- `AGENT_MANAGER_MODEL`
+- `AGENT_MANAGER_BASE_URL`
+- `AGENT_MANAGER_API_KEY_ENV`
+- `AGENT_MANAGER_PROFILE`
+- `AGENT_MANAGER_SYSTEM_PROMPT`
+- `AGENT_MANAGER_STATE_DIR`
+- `AGENT_MANAGER_STATE_PATH`
+- `AGENT_MANAGER_LOG_LEVEL`
+- `AGENT_MANAGER_LOG_JSON`
+- `AGENT_MANAGER_ALLOWED_TOOLS`
+- `AGENT_MANAGER_DENIED_TOOLS`
+- `AGENT_MANAGER_DENIED_TAGS`
+- `AGENT_MANAGER_DENIED_PERMISSIONS`
+
+Example:
+
+```bash
+set AGENT_MANAGER_PROVIDER=ollama
+set AGENT_MANAGER_MODEL=llama3.1
+set AGENT_MANAGER_BASE_URL=http://localhost:11434
+agent-manager "Summarize this repository."
+```
+
+## Loading from Python
+
+```python
+from agent_manager import RuntimeConfig
+
+config = RuntimeConfig.from_file("agent-manager.toml")
+```
+
+Or:
+
+```python
+from agent_manager import RuntimeConfig
+
+config = RuntimeConfig.from_env()
+```
+
+## Good configuration habits
+
+- keep provider secrets in environment variables
+- use `readonly` or policy overrides for research-style runs
+- use `sqlite` for resumable local work
+- tune `max_context_tokens` to the real model you are using
+- keep `pre_call_functions` explicit per profile so behavior stays predictable

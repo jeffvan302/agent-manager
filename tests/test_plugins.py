@@ -12,6 +12,7 @@ from agent_manager.plugins import (
     OpenAPIOperation,
     OpenAPIToolsPlugin,
     Plugin,
+    TinyDBToolsPlugin,
 )
 from agent_manager.tools.base import BaseTool, ToolContext, ToolResult, ToolSpec
 from agent_manager.types import ToolCallRequest
@@ -101,6 +102,83 @@ class SessionToolPlugin(Plugin):
 
     def register(self, target) -> None:
         target.register_tool(PluginCaptureTool(), replace=True)
+
+
+class FakeTinyDocument(dict):
+    def __init__(self, data: dict, doc_id: int) -> None:
+        super().__init__(data)
+        self.doc_id = doc_id
+
+
+class FakeTinyTable:
+    def __init__(self) -> None:
+        self._documents: list[FakeTinyDocument] = []
+        self._next_id = 1
+
+    def insert(self, document: dict) -> int:
+        doc_id = self._next_id
+        self._next_id += 1
+        self._documents.append(FakeTinyDocument(dict(document), doc_id))
+        return doc_id
+
+    def all(self) -> list[FakeTinyDocument]:
+        return list(self._documents)
+
+    def search(self, cond) -> list[FakeTinyDocument]:
+        return [document for document in self._documents if cond(document)]
+
+    def get(self, cond=None, doc_id=None):
+        if doc_id is not None:
+            for document in self._documents:
+                if document.doc_id == doc_id:
+                    return document
+            return None
+        if cond is None:
+            return self._documents[0] if self._documents else None
+        for document in self._documents:
+            if cond(document):
+                return document
+        return None
+
+    def update(self, fields: dict, cond=None, doc_ids=None) -> list[int]:
+        matched = self._matching_documents(cond=cond, doc_ids=doc_ids)
+        for document in matched:
+            document.update(fields)
+        return [document.doc_id for document in matched]
+
+    def remove(self, cond=None, doc_ids=None) -> list[int]:
+        matched = self._matching_documents(cond=cond, doc_ids=doc_ids)
+        matched_ids = {document.doc_id for document in matched}
+        self._documents = [
+            document for document in self._documents if document.doc_id not in matched_ids
+        ]
+        return sorted(matched_ids)
+
+    def upsert(self, document: dict, cond=None) -> list[int]:
+        matched = self.search(cond) if cond is not None else []
+        if matched:
+            for existing in matched:
+                existing.update(document)
+            return [existing.doc_id for existing in matched]
+        return [self.insert(document)]
+
+    def _matching_documents(self, *, cond=None, doc_ids=None) -> list[FakeTinyDocument]:
+        if doc_ids is not None:
+            ids = {int(item) for item in doc_ids}
+            return [document for document in self._documents if document.doc_id in ids]
+        if cond is None:
+            return []
+        return self.search(cond)
+
+
+class FakeTinyDB:
+    def __init__(self) -> None:
+        self._tables: dict[str, FakeTinyTable] = {}
+
+    def table(self, name: str) -> FakeTinyTable:
+        if name not in self._tables:
+            self._tables[name] = FakeTinyTable()
+        return self._tables[name]
 
 
 class PluginAdapterTests(unittest.TestCase):
@@ -227,6 +305,123 @@ class PluginAdapterTests(unittest.TestCase):
 
         self.assertTrue(session.tools.has("plugin_tool"))
         self.assertIn("session-tool-plugin", session.plugins.names())
+
+    def test_tinydb_tools_plugin_registers_configured_wrapper(self) -> None:
+        temp_dir = make_workspace_temp_dir()
+        try:
+            session = AgentSession(
+                config=RuntimeConfig.from_dict(
+                    {
+                        "state_dir": str(temp_dir),
+                        "profile": "local-dev",
+                    }
+                ),
+                include_builtin_tools=False,
+                plugins=[
+                    TinyDBToolsPlugin(
+                        database=FakeTinyDB(),
+                        table_name="notes",
+                        tool_name="notes_db",
+                        allowed_operations=[
+                            "insert",
+                            "search",
+                            "get",
+                            "update",
+                            "remove",
+                            "count",
+                        ],
+                    )
+                ],
+            )
+            context = ToolContext(task_id="task-1", step_index=0, tool_call_id="tiny-1")
+            insert_result = session.tool_executor.execute(
+                ToolCallRequest(
+                    id="tiny-1",
+                    name="notes_db",
+                    arguments={
+                        "action": "insert",
+                        "document": {"kind": "todo", "title": "Ship TinyDB tool"},
+                    },
+                ),
+                context,
+            )
+            search_result = session.tool_executor.execute(
+                ToolCallRequest(
+                    id="tiny-2",
+                    name="notes_db",
+                    arguments={
+                        "action": "search",
+                        "query": {"kind": "todo"},
+                    },
+                ),
+                ToolContext(task_id="task-1", step_index=1, tool_call_id="tiny-2"),
+            )
+            update_result = session.tool_executor.execute(
+                ToolCallRequest(
+                    id="tiny-3",
+                    name="notes_db",
+                    arguments={
+                        "action": "update",
+                        "query": {"title": "Ship TinyDB tool"},
+                        "fields": {"done": True},
+                    },
+                ),
+                ToolContext(task_id="task-1", step_index=2, tool_call_id="tiny-3"),
+            )
+            get_result = session.tool_executor.execute(
+                ToolCallRequest(
+                    id="tiny-4",
+                    name="notes_db",
+                    arguments={
+                        "action": "get",
+                        "query": {"done": True},
+                    },
+                ),
+                ToolContext(task_id="task-1", step_index=3, tool_call_id="tiny-4"),
+            )
+            count_result = session.tool_executor.execute(
+                ToolCallRequest(
+                    id="tiny-5",
+                    name="notes_db",
+                    arguments={
+                        "action": "count",
+                        "query": {"kind": "todo"},
+                    },
+                ),
+                ToolContext(task_id="task-1", step_index=4, tool_call_id="tiny-5"),
+            )
+            disallowed_result = session.tool_executor.execute(
+                ToolCallRequest(
+                    id="tiny-6",
+                    name="notes_db",
+                    arguments={"action": "all"},
+                ),
+                ToolContext(task_id="task-1", step_index=5, tool_call_id="tiny-6"),
+            )
+            remove_result = session.tool_executor.execute(
+                ToolCallRequest(
+                    id="tiny-7",
+                    name="notes_db",
+                    arguments={
+                        "action": "remove",
+                        "query": {"done": True},
+                    },
+                ),
+                ToolContext(task_id="task-1", step_index=6, tool_call_id="tiny-7"),
+            )
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+        self.assertTrue(session.tools.has("notes_db"))
+        self.assertTrue(insert_result.ok)
+        self.assertEqual(search_result.output["count"], 1)
+        self.assertEqual(search_result.output["documents"][0]["title"], "Ship TinyDB tool")
+        self.assertEqual(update_result.output["count"], 1)
+        self.assertEqual(get_result.output["document"]["done"], True)
+        self.assertEqual(count_result.output["count"], 1)
+        self.assertFalse(disallowed_result.ok)
+        self.assertIn("Allowed actions", disallowed_result.error)
+        self.assertEqual(remove_result.output["count"], 1)
 
 
 if __name__ == "__main__":

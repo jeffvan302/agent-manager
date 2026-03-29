@@ -1,0 +1,173 @@
+{
+  "task_id": "e74449486a1f4d32bb2835a65fd4eff0",
+  "goal": "failure test",
+  "step_index": 1,
+  "messages": [
+    {
+      "role": "user",
+      "content": "failure test",
+      "name": null,
+      "metadata": {}
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [],
+  "step_history": [
+    {
+      "step_index": 0,
+      "started_at": "2026-03-29T11:19:22.929010+00:00",
+      "provider": "failing-provider",
+      "model": "echo-v1",
+      "prepared_context": {
+        "sections": [
+          "system_instructions",
+          "goal",
+          "current_plan",
+          "execution_constraints",
+          "recent_message_1"
+        ],
+        "dropped_sections": [],
+        "token_estimate": 106,
+        "pre_call_functions": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ],
+        "executed_steps": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ]
+      },
+      "request": {
+        "message_count": 2,
+        "tool_count": 6,
+        "structured_output": null
+      },
+      "status": "failed",
+      "error": "provider boom",
+      "finished_at": "2026-03-29T11:19:22.941601+00:00"
+    },
+    {
+      "step_index": 1,
+      "started_at": "2026-03-29T11:19:22.941611+00:00",
+      "provider": "failing-provider",
+      "model": "echo-v1",
+      "prepared_context": {
+        "sections": [
+          "system_instructions",
+          "goal",
+          "current_plan",
+          "execution_constraints",
+          "recent_message_1"
+        ],
+        "dropped_sections": [],
+        "token_estimate": 106,
+        "pre_call_functions": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ],
+        "executed_steps": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ]
+      },
+      "request": {
+        "message_count": 2,
+        "tool_count": 6,
+        "structured_output": null
+      },
+      "status": "failed",
+      "error": "provider boom",
+      "finished_at": "2026-03-29T11:19:22.954246+00:00"
+    }
+  ],
+  "pending_subgoals": [
+    "Understand the goal and identify the highest-priority context.",
+    "Inspect the affected files and update the implementation.",
+    "Review the result and stop when the goal is satisfied."
+  ],
+  "errors": [
+    {
+      "type": "RuntimeError",
+      "message": "provider boom",
+      "step_index": 0,
+      "timestamp": "2026-03-29T11:19:22.937497+00:00",
+      "metadata": {
+        "consecutive_failures": 1
+      }
+    },
+    {
+      "type": "RuntimeError",
+      "message": "provider boom",
+      "step_index": 1,
+      "timestamp": "2026-03-29T11:19:22.950150+00:00",
+      "metadata": {
+        "consecutive_failures": 2
+      }
+    }
+  ],
+  "checkpoint_timestamps": [
+    "2026-03-29T11:19:22.925040+00:00",
+    "2026-03-29T11:19:22.929016+00:00",
+    "2026-03-29T11:19:22.933316+00:00",
+    "2026-03-29T11:19:22.937503+00:00",
+    "2026-03-29T11:19:22.941617+00:00",
+    "2026-03-29T11:19:22.945760+00:00",
+    "2026-03-29T11:19:22.950157+00:00",
+    "2026-03-29T11:19:22.954256+00:00"
+  ],
+  "structured_output_spec": null,
+  "status": "repeated_failure",
+  "metadata": {
+    "current_plan": [
+      "Understand the goal and identify the highest-priority context.",
+      "Inspect the affected files and update the implementation.",
+      "Review the result and stop when the goal is satisfied."
+    ],
+    "planner": "Planner",
+    "prepared_context": {
+      "sections": [
+        "system_instructions",
+        "goal",
+        "current_plan",
+        "execution_constraints",
+        "recent_message_1"
+      ],
+      "dropped_sections": [],
+      "token_estimate": 106,
+      "pre_call_functions": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ],
+      "executed_steps": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ]
+    },
+    "consecutive_failures": 2,
+    "last_error": "provider boom"
+  }
+}

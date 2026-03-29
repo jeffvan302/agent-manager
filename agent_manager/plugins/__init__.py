@@ -25,6 +25,7 @@ from agent_manager.plugins.mcp import MCPToolAdapter, MCPToolsPlugin
 from agent_manager.plugins.openapi import OpenAPIOperation, OpenAPIToolAdapter, OpenAPIToolsPlugin
 from agent_manager.plugins.pgvector import PgVectorRetrieverAdapter, PgVectorRetrievalPlugin
 from agent_manager.plugins.registry import PluginRegistry
+from agent_manager.plugins.tinydb import TinyDBToolAdapter, TinyDBToolsPlugin
 
 __all__ = [
     "BaseEmbeddingProvider",
@@ -49,6 +50,8 @@ __all__ = [
     "Plugin",
     "PluginRegistry",
     "SentenceTransformerEmbeddingProvider",
+    "TinyDBToolAdapter",
+    "TinyDBToolsPlugin",
     "export_all",
     "to_langchain_tool_definition",
     "to_mcp_tool_definition",

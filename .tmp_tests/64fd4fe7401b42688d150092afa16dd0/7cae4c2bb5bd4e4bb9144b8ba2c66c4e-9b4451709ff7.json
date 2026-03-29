@@ -1,0 +1,131 @@
+{
+  "task_id": "7cae4c2bb5bd4e4bb9144b8ba2c66c4e",
+  "goal": "stream json",
+  "step_index": 1,
+  "messages": [
+    {
+      "role": "user",
+      "content": "stream json",
+      "name": null,
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "{\"answer\":\"ok\"}",
+      "name": null,
+      "metadata": {
+        "stop_reason": "completed",
+        "structured_output": {
+          "answer": "ok"
+        }
+      }
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [],
+  "step_history": [
+    {
+      "step_index": 0,
+      "started_at": "2026-03-29T11:19:37.349584+00:00",
+      "provider": "structured-provider",
+      "model": "echo-v1",
+      "prepared_context": {
+        "sections": [
+          "system_instructions",
+          "goal",
+          "current_plan",
+          "execution_constraints",
+          "recent_message_1"
+        ],
+        "dropped_sections": [],
+        "token_estimate": 122,
+        "pre_call_functions": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ],
+        "executed_steps": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ]
+      },
+      "request": {
+        "message_count": 2,
+        "tool_count": 0,
+        "structured_output": null
+      },
+      "provider_result": {
+        "stop_reason": "completed",
+        "usage": {
+          "input_tokens": 3,
+          "output_tokens": 2
+        },
+        "tool_calls": [],
+        "structured_output": {
+          "answer": "ok"
+        }
+      },
+      "status": "completed",
+      "finished_at": "2026-03-29T11:19:37.358653+00:00"
+    }
+  ],
+  "pending_subgoals": [
+    "Understand the goal and identify the highest-priority context.",
+    "Assemble the most relevant context for the current task.",
+    "Produce the next best response or action with the available tools.",
+    "Review the result and stop when the goal is satisfied."
+  ],
+  "errors": [],
+  "checkpoint_timestamps": [
+    "2026-03-29T11:19:37.344991+00:00",
+    "2026-03-29T11:19:37.349592+00:00",
+    "2026-03-29T11:19:37.353927+00:00",
+    "2026-03-29T11:19:37.358657+00:00"
+  ],
+  "structured_output_spec": null,
+  "status": "completed",
+  "metadata": {
+    "current_plan": [
+      "Understand the goal and identify the highest-priority context.",
+      "Assemble the most relevant context for the current task.",
+      "Produce the next best response or action with the available tools.",
+      "Review the result and stop when the goal is satisfied."
+    ],
+    "planner": "Planner",
+    "prepared_context": {
+      "sections": [
+        "system_instructions",
+        "goal",
+        "current_plan",
+        "execution_constraints",
+        "recent_message_1"
+      ],
+      "dropped_sections": [],
+      "token_estimate": 122,
+      "pre_call_functions": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ],
+      "executed_steps": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ]
+    },
+    "consecutive_failures": 0
+  }
+}

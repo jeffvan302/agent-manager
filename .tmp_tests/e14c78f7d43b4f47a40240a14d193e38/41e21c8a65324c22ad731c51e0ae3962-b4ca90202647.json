@@ -1,0 +1,117 @@
+{
+  "task_id": "41e21c8a65324c22ad731c51e0ae3962",
+  "goal": "Prepare request context",
+  "step_index": 1,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Prepare request context",
+      "name": null,
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "context-ready",
+      "name": null,
+      "metadata": {
+        "stop_reason": "completed"
+      }
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [],
+  "step_history": [
+    {
+      "step_index": 0,
+      "started_at": "2026-03-29T11:19:22.120734+00:00",
+      "provider": "capture-provider",
+      "model": "echo-v1",
+      "prepared_context": {
+        "sections": [
+          "system_instructions",
+          "goal",
+          "current_plan",
+          "execution_constraints",
+          "recent_message_1",
+          "custom_note"
+        ],
+        "dropped_sections": [],
+        "token_estimate": 143,
+        "pre_call_functions": [
+          "collect_recent_messages",
+          "inject_custom_note",
+          "apply_token_budget",
+          "finalize_messages"
+        ],
+        "executed_steps": [
+          "collect_recent_messages",
+          "inject_custom_note",
+          "apply_token_budget",
+          "finalize_messages"
+        ]
+      },
+      "request": {
+        "message_count": 2,
+        "tool_count": 0,
+        "structured_output": null
+      },
+      "provider_result": {
+        "stop_reason": "completed",
+        "usage": null,
+        "tool_calls": [],
+        "structured_output": null
+      },
+      "status": "completed",
+      "finished_at": "2026-03-29T11:19:22.128931+00:00"
+    }
+  ],
+  "pending_subgoals": [
+    "Understand the goal and identify the highest-priority context.",
+    "Assemble the most relevant context for the current task.",
+    "Produce the next best response or action with the available tools.",
+    "Review the result and stop when the goal is satisfied."
+  ],
+  "errors": [],
+  "checkpoint_timestamps": [
+    "2026-03-29T11:19:22.116848+00:00",
+    "2026-03-29T11:19:22.120743+00:00",
+    "2026-03-29T11:19:22.124933+00:00",
+    "2026-03-29T11:19:22.128935+00:00"
+  ],
+  "structured_output_spec": null,
+  "status": "completed",
+  "metadata": {
+    "current_plan": [
+      "Understand the goal and identify the highest-priority context.",
+      "Assemble the most relevant context for the current task.",
+      "Produce the next best response or action with the available tools.",
+      "Review the result and stop when the goal is satisfied."
+    ],
+    "planner": "Planner",
+    "prepared_context": {
+      "sections": [
+        "system_instructions",
+        "goal",
+        "current_plan",
+        "execution_constraints",
+        "recent_message_1",
+        "custom_note"
+      ],
+      "dropped_sections": [],
+      "token_estimate": 143,
+      "pre_call_functions": [
+        "collect_recent_messages",
+        "inject_custom_note",
+        "apply_token_budget",
+        "finalize_messages"
+      ],
+      "executed_steps": [
+        "collect_recent_messages",
+        "inject_custom_note",
+        "apply_token_budget",
+        "finalize_messages"
+      ]
+    },
+    "consecutive_failures": 0
+  }
+}

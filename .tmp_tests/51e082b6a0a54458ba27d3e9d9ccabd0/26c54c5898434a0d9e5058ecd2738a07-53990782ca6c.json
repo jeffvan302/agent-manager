@@ -1,0 +1,138 @@
+{
+  "task_id": "26c54c5898434a0d9e5058ecd2738a07",
+  "goal": "resource exhaustion test",
+  "step_index": 0,
+  "messages": [
+    {
+      "role": "user",
+      "content": "resource exhaustion test",
+      "name": null,
+      "metadata": {}
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [],
+  "step_history": [
+    {
+      "step_index": 0,
+      "started_at": "2026-03-29T11:19:22.985244+00:00",
+      "provider": "resource-exhausted-provider",
+      "model": "echo-v1",
+      "prepared_context": {
+        "sections": [
+          "system_instructions",
+          "goal",
+          "current_plan",
+          "execution_constraints",
+          "recent_message_1"
+        ],
+        "dropped_sections": [],
+        "token_estimate": 112,
+        "pre_call_functions": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ],
+        "executed_steps": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ]
+      },
+      "request": {
+        "message_count": 2,
+        "tool_count": 6,
+        "structured_output": null
+      },
+      "status": "resource_exhausted",
+      "error": {
+        "provider": "resource-exhausted-provider",
+        "kind": "quota_exhausted",
+        "status_code": 429,
+        "retry_after_seconds": 60.0,
+        "message": "Quota exceeded.",
+        "metadata": {}
+      },
+      "finished_at": "2026-03-29T11:19:22.993877+00:00"
+    }
+  ],
+  "pending_subgoals": [
+    "Understand the goal and identify the highest-priority context.",
+    "Inspect the affected files and update the implementation.",
+    "Review the result and stop when the goal is satisfied."
+  ],
+  "errors": [
+    {
+      "type": "resource_exhausted",
+      "message": "Quota exceeded.",
+      "step_index": 0,
+      "timestamp": "2026-03-29T11:19:22.993873+00:00",
+      "metadata": {
+        "provider": "resource-exhausted-provider",
+        "kind": "quota_exhausted",
+        "status_code": 429,
+        "retry_after_seconds": 60.0,
+        "message": "Quota exceeded.",
+        "metadata": {}
+      }
+    }
+  ],
+  "checkpoint_timestamps": [
+    "2026-03-29T11:19:22.981279+00:00",
+    "2026-03-29T11:19:22.985251+00:00",
+    "2026-03-29T11:19:22.989620+00:00",
+    "2026-03-29T11:19:22.993884+00:00"
+  ],
+  "structured_output_spec": null,
+  "status": "resource_exhausted",
+  "metadata": {
+    "current_plan": [
+      "Understand the goal and identify the highest-priority context.",
+      "Inspect the affected files and update the implementation.",
+      "Review the result and stop when the goal is satisfied."
+    ],
+    "planner": "Planner",
+    "prepared_context": {
+      "sections": [
+        "system_instructions",
+        "goal",
+        "current_plan",
+        "execution_constraints",
+        "recent_message_1"
+      ],
+      "dropped_sections": [],
+      "token_estimate": 112,
+      "pre_call_functions": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ],
+      "executed_steps": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ]
+    },
+    "resource_exhaustion": {
+      "provider": "resource-exhausted-provider",
+      "kind": "quota_exhausted",
+      "status_code": 429,
+      "retry_after_seconds": 60.0,
+      "message": "Quota exceeded.",
+      "metadata": {}
+    },
+    "last_error": "Quota exceeded."
+  }
+}

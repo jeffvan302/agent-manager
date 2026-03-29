@@ -1,0 +1,128 @@
+{
+  "task_id": "a67ed567a3af4198a743aa4c184a658b",
+  "goal": "timeout test",
+  "step_index": 1,
+  "messages": [
+    {
+      "role": "user",
+      "content": "timeout test",
+      "name": null,
+      "metadata": {}
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [],
+  "step_history": [
+    {
+      "step_index": 0,
+      "started_at": "2026-03-29T11:19:22.883594+00:00",
+      "provider": "slow-provider",
+      "model": "echo-v1",
+      "prepared_context": {
+        "sections": [
+          "system_instructions",
+          "goal",
+          "current_plan",
+          "execution_constraints",
+          "recent_message_1"
+        ],
+        "dropped_sections": [],
+        "token_estimate": 106,
+        "pre_call_functions": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ],
+        "executed_steps": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ]
+      },
+      "request": {
+        "message_count": 2,
+        "tool_count": 6,
+        "structured_output": null
+      },
+      "status": "failed",
+      "error": "",
+      "finished_at": "2026-03-29T11:19:22.898119+00:00"
+    },
+    {
+      "step_index": 1,
+      "started_at": "2026-03-29T11:19:22.898133+00:00",
+      "provider": "slow-provider",
+      "model": "echo-v1",
+      "status": "timeout",
+      "finished_at": "2026-03-29T11:19:22.898139+00:00"
+    }
+  ],
+  "pending_subgoals": [
+    "Understand the goal and identify the highest-priority context.",
+    "Inspect the affected files and update the implementation.",
+    "Review the result and stop when the goal is satisfied."
+  ],
+  "errors": [
+    {
+      "type": "TimeoutError",
+      "message": "",
+      "step_index": 0,
+      "timestamp": "2026-03-29T11:19:22.894155+00:00",
+      "metadata": {
+        "consecutive_failures": 1
+      }
+    }
+  ],
+  "checkpoint_timestamps": [
+    "2026-03-29T11:19:22.879916+00:00",
+    "2026-03-29T11:19:22.883603+00:00",
+    "2026-03-29T11:19:22.887742+00:00",
+    "2026-03-29T11:19:22.894166+00:00",
+    "2026-03-29T11:19:22.898144+00:00"
+  ],
+  "structured_output_spec": null,
+  "status": "timeout",
+  "metadata": {
+    "current_plan": [
+      "Understand the goal and identify the highest-priority context.",
+      "Inspect the affected files and update the implementation.",
+      "Review the result and stop when the goal is satisfied."
+    ],
+    "planner": "Planner",
+    "prepared_context": {
+      "sections": [
+        "system_instructions",
+        "goal",
+        "current_plan",
+        "execution_constraints",
+        "recent_message_1"
+      ],
+      "dropped_sections": [],
+      "token_estimate": 106,
+      "pre_call_functions": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ],
+      "executed_steps": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ]
+    },
+    "consecutive_failures": 1,
+    "last_error": ""
+  }
+}

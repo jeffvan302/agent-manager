@@ -102,6 +102,31 @@ class CaptureLMStudioProvider(CaptureMixin, LMStudioProvider):
     pass
 
 
+class CaptureStreamingAnthropicProvider(AnthropicProvider):
+    def __init__(
+        self,
+        stream_events: list[tuple[str, dict[str, Any]]],
+        config: ProviderConfig,
+    ) -> None:
+        super().__init__(config)
+        self.stream_events = list(stream_events)
+        self.last_path: str | None = None
+        self.last_payload: Mapping[str, Any] | None = None
+        self.last_headers: Mapping[str, str] | None = None
+
+    async def _stream_sse_events(
+        self,
+        path: str,
+        *,
+        payload: Mapping[str, Any],
+        headers: Mapping[str, str],
+    ) -> list[tuple[str, dict[str, Any]]]:
+        self.last_path = path
+        self.last_payload = payload
+        self.last_headers = headers
+        return list(self.stream_events)
+
+
 class RetryableTestProvider(HTTPProvider):
     provider_name = "retry-test"
     default_base_url = "https://example.test"
@@ -225,6 +250,84 @@ class ProviderAdapterTests(unittest.TestCase):
         self.assertEqual(merged_user_blocks[1]["type"], "text")
         self.assertEqual(result.stop_reason, "tool_call")
         self.assertEqual(result.tool_calls[0].id, "toolu_123")
+
+    def test_anthropic_streaming_yields_text_and_tool_calls(self) -> None:
+        provider = CaptureStreamingAnthropicProvider(
+            [
+                (
+                    "message_start",
+                    {
+                        "message": {
+                            "id": "msg_stream_123",
+                            "model": "claude-3-7-sonnet",
+                            "usage": {"input_tokens": 12},
+                        }
+                    },
+                ),
+                (
+                    "content_block_delta",
+                    {"index": 0, "delta": {"type": "text_delta", "text": "I'll check"}},
+                ),
+                (
+                    "content_block_delta",
+                    {"index": 0, "delta": {"type": "text_delta", "text": " that."}},
+                ),
+                (
+                    "content_block_start",
+                    {
+                        "index": 1,
+                        "content_block": {
+                            "type": "tool_use",
+                            "id": "toolu_stream_123",
+                            "name": "lookup_weather",
+                        },
+                    },
+                ),
+                (
+                    "content_block_delta",
+                    {
+                        "index": 1,
+                        "delta": {
+                            "type": "input_json_delta",
+                            "partial_json": '{"city":"Paris"}',
+                        },
+                    },
+                ),
+                (
+                    "message_delta",
+                    {
+                        "delta": {"stop_reason": "tool_use"},
+                        "usage": {"input_tokens": 12, "output_tokens": 8},
+                    },
+                ),
+            ],
+            ProviderConfig(
+                name="anthropic",
+                model="claude-3-7-sonnet",
+                settings={"api_key": "anthropic-key"},
+            ),
+        )
+        request = ProviderRequest(model="claude-3-7-sonnet", messages=BASE_MESSAGES, tools=BASE_TOOLS)
+
+        async def _collect():
+            items = []
+            async for item in provider.stream_generate(request):
+                items.append(item)
+            return items
+
+        items = asyncio.run(_collect())
+
+        self.assertEqual(provider.last_path, "messages")
+        self.assertEqual(provider.last_headers["x-api-key"], "anthropic-key")
+        self.assertEqual(items[0].kind, "text_delta")
+        self.assertEqual(items[0].text, "I'll check")
+        self.assertEqual(items[1].text, " that.")
+        final_result = items[-1].result
+        self.assertIsNotNone(final_result)
+        self.assertEqual(final_result.text, "I'll check that.")
+        self.assertEqual(final_result.stop_reason, "tool_call")
+        self.assertEqual(final_result.tool_calls[0].id, "toolu_stream_123")
+        self.assertEqual(final_result.tool_calls[0].arguments["city"], "Paris")
 
     def test_gemini_adapter_translates_function_calls(self) -> None:
         provider = CaptureGeminiProvider(
@@ -351,7 +454,7 @@ class ProviderAdapterTests(unittest.TestCase):
         self.assertEqual(response["ok"], True)
         self.assertEqual(provider.calls, 3)
         self.assertTrue(provider.last_headers["User-Agent"].startswith("agent-manager/"))
-        self.assertFalse(OpenAIProvider(ProviderConfig(settings={"api_key": "x"})).capabilities.supports_streaming)
+        self.assertTrue(OpenAIProvider(ProviderConfig(settings={"api_key": "x"})).capabilities.supports_streaming)
 
     def test_resource_exhaustion_classification_quota(self) -> None:
         provider = ErrorInspectingProvider(ProviderConfig(name="error-inspector", model="n/a"))

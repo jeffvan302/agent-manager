@@ -330,6 +330,70 @@ class RequirementsCompletionTests(unittest.TestCase):
         )
         self.assertEqual(result.state.metadata["planner"], "FixedPlanner")
 
+    def test_configured_tool_policy_overrides_are_applied(self) -> None:
+        session = AgentSession(
+            config=RuntimeConfig.from_dict(
+                {
+                    "profile": "local-dev",
+                    "tool_policy": {"denied_tools": ["write_file"]},
+                }
+            ),
+            include_builtin_tools=False,
+        )
+        session.register_tool(WriteFileTool())
+
+        with self.assertRaises(PolicyViolationError):
+            session.tool_executor.execute(
+                ToolCallRequest(
+                    id="write-2",
+                    name="write_file",
+                    arguments={"path": "blocked.txt", "content": "still blocked"},
+                ),
+                ToolContext(
+                    task_id="task-2",
+                    step_index=0,
+                    tool_call_id="write-2",
+                    working_directory=str(Path.cwd()),
+                ),
+            )
+
+    def test_generated_summaries_are_persisted_into_state(self) -> None:
+        temp_dir = make_workspace_temp_dir()
+        try:
+            session = AgentSession(
+                config=RuntimeConfig.from_dict(
+                    {
+                        "state_dir": str(temp_dir),
+                        "context": {
+                            "history_window": 2,
+                            "summary_trigger_messages": 2,
+                        },
+                    }
+                ),
+                provider=PlainProvider(),
+                include_builtin_tools=False,
+            )
+            state = LoopState(
+                task_id="summary-persisted",
+                goal="Complete the task",
+                messages=[
+                    Message(role="user", content="First request"),
+                    Message(role="assistant", content="First reply"),
+                    Message(role="user", content="Second request"),
+                    Message(role="assistant", content="Second reply"),
+                    Message(role="user", content="Final request"),
+                ],
+            )
+            session.checkpoints.save(state)
+            result = session.resume(state.task_id)
+            loaded = session.state_store.load(state.task_id)
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+        self.assertTrue(result.state.summaries)
+        self.assertIsNotNone(loaded)
+        self.assertEqual(loaded.summaries, result.state.summaries)
+
     def test_model_budget_uses_provider_specific_overrides(self) -> None:
         config = RuntimeConfig.from_dict(
             {

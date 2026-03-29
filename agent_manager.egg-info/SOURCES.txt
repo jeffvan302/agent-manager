@@ -27,6 +27,7 @@ agent_manager/context/sections.py
 agent_manager/context/summarizer.py
 agent_manager/memory/__init__.py
 agent_manager/memory/base.py
+agent_manager/memory/indexing.py
 agent_manager/memory/long_term.py
 agent_manager/memory/retrieval.py
 agent_manager/memory/short_term.py
@@ -65,14 +66,17 @@ agent_manager/tools/base.py
 agent_manager/tools/executor.py
 agent_manager/tools/policies.py
 agent_manager/tools/registry.py
+agent_manager/tools/web_search.py
 agent_manager/tools/builtins/__init__.py
 agent_manager/tools/builtins/filesystem.py
 agent_manager/tools/builtins/http.py
 agent_manager/tools/builtins/retrieval.py
 agent_manager/tools/builtins/shell.py
+agent_manager/tools/builtins/web.py
 tests/test_context.py
 tests/test_phase5_new.py
 tests/test_plugins.py
 tests/test_providers.py
+tests/test_requirements_completion.py
 tests/test_smoke.py
 tests/test_tools.py

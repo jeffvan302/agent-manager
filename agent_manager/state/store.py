@@ -63,12 +63,19 @@ class JsonFileStateStore(StateStore):
 
     def save(self, state: LoopState) -> None:
         path = self._path_for(state.task_id)
+        tmp_path = path.with_suffix(".tmp")
         try:
-            path.write_text(
+            tmp_path.write_text(
                 json.dumps(state.to_dict(), indent=2, ensure_ascii=True),
                 encoding="utf-8",
             )
+            tmp_path.replace(path)
         except OSError as exc:
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
             raise CheckpointError(f"Failed to write checkpoint {path}") from exc
 
 

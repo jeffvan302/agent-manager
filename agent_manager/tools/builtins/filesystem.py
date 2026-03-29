@@ -34,6 +34,15 @@ def resolve_scoped_path(path_value: str, context: ToolContext) -> Path:
     if not candidate.is_absolute():
         candidate = roots[0] / candidate
     resolved = candidate.resolve(strict=False)
+    # Prevent symlink escape: if the raw path contains a symlink that
+    # resolves outside the allowed roots, the resolved path will differ.
+    if candidate.exists() and candidate.is_symlink():
+        real_target = candidate.resolve(strict=True)
+        if not any(_is_relative_to(real_target, root) for root in roots):
+            raise PermissionError(
+                f"Symlink '{candidate}' points to '{real_target}' which is outside "
+                f"the allowed filesystem roots."
+            )
     if not any(_is_relative_to(resolved, root) for root in roots):
         raise PermissionError(f"Path '{resolved}' is outside the allowed filesystem roots.")
     return resolved

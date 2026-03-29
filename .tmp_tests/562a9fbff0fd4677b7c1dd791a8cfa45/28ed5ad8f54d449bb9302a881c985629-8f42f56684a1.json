@@ -1,0 +1,154 @@
+{
+  "task_id": "28ed5ad8f54d449bb9302a881c985629",
+  "goal": "tool timeout test",
+  "step_index": 0,
+  "messages": [
+    {
+      "role": "user",
+      "content": "tool timeout test",
+      "name": null,
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "name": null,
+      "metadata": {
+        "stop_reason": "tool_call",
+        "tool_calls": [
+          {
+            "id": "slow_tool-call-1",
+            "name": "slow_tool",
+            "arguments": {}
+          }
+        ]
+      }
+    }
+  ],
+  "summaries": [],
+  "tool_observations": [],
+  "step_history": [
+    {
+      "step_index": 0,
+      "started_at": "2026-03-29T11:19:37.886755+00:00",
+      "provider": "single-tool-caller",
+      "model": "echo-v1",
+      "prepared_context": {
+        "sections": [
+          "system_instructions",
+          "goal",
+          "current_plan",
+          "execution_constraints",
+          "recent_message_1"
+        ],
+        "dropped_sections": [],
+        "token_estimate": 108,
+        "pre_call_functions": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ],
+        "executed_steps": [
+          "collect_recent_messages",
+          "summarize_history",
+          "inject_retrieval",
+          "inject_memory_facts",
+          "apply_token_budget",
+          "finalize_messages"
+        ]
+      },
+      "request": {
+        "message_count": 2,
+        "tool_count": 7,
+        "structured_output": null
+      },
+      "provider_result": {
+        "stop_reason": "tool_call",
+        "usage": null,
+        "tool_calls": [
+          {
+            "id": "slow_tool-call-1",
+            "name": "slow_tool",
+            "arguments": {}
+          }
+        ],
+        "structured_output": null
+      },
+      "tool_calls": [
+        {
+          "id": "slow_tool-call-1",
+          "name": "slow_tool",
+          "arguments": {}
+        }
+      ],
+      "status": "timeout",
+      "error": "Tool 'slow_tool' timed out after 0.01 seconds.",
+      "finished_at": "2026-03-29T11:19:37.908218+00:00"
+    }
+  ],
+  "pending_subgoals": [
+    "Understand the goal and identify the highest-priority context.",
+    "Inspect the affected files and update the implementation.",
+    "Review the result and stop when the goal is satisfied."
+  ],
+  "errors": [
+    {
+      "type": "timeout",
+      "message": "Tool 'slow_tool' timed out after 0.01 seconds.",
+      "step_index": 0,
+      "timestamp": "2026-03-29T11:19:37.908157+00:00",
+      "metadata": {
+        "tool_name": "slow_tool",
+        "tool_call_id": "slow_tool-call-1"
+      }
+    }
+  ],
+  "checkpoint_timestamps": [
+    "2026-03-29T11:19:37.881787+00:00",
+    "2026-03-29T11:19:37.886766+00:00",
+    "2026-03-29T11:19:37.892157+00:00",
+    "2026-03-29T11:19:37.908239+00:00"
+  ],
+  "structured_output_spec": null,
+  "status": "timeout",
+  "metadata": {
+    "current_plan": [
+      "Understand the goal and identify the highest-priority context.",
+      "Inspect the affected files and update the implementation.",
+      "Review the result and stop when the goal is satisfied."
+    ],
+    "planner": "Planner",
+    "prepared_context": {
+      "sections": [
+        "system_instructions",
+        "goal",
+        "current_plan",
+        "execution_constraints",
+        "recent_message_1"
+      ],
+      "dropped_sections": [],
+      "token_estimate": 108,
+      "pre_call_functions": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ],
+      "executed_steps": [
+        "collect_recent_messages",
+        "summarize_history",
+        "inject_retrieval",
+        "inject_memory_facts",
+        "apply_token_budget",
+        "finalize_messages"
+      ]
+    },
+    "consecutive_failures": 0,
+    "last_error": "Tool 'slow_tool' timed out after 0.01 seconds."
+  }
+}

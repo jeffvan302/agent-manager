@@ -6,6 +6,7 @@ from agent_manager.config import (
     ProviderConfig,
     RuntimeConfig,
     RuntimeLimits,
+    ToolPolicyConfig,
     load_config,
 )
 from agent_manager.context import PreCallFunctionRegistry, PreCallPipeline
@@ -41,6 +42,8 @@ from agent_manager.plugins import (
     Plugin,
     PluginRegistry,
     SentenceTransformerEmbeddingProvider,
+    TinyDBToolAdapter,
+    TinyDBToolsPlugin,
     export_all,
     to_langchain_tool_definition,
     to_mcp_tool_definition,
@@ -49,6 +52,8 @@ from agent_manager.plugins import (
 )
 from agent_manager.providers.factory import available_providers, build_provider, register_provider
 from agent_manager.runtime.session import AgentSession
+from agent_manager.memory.long_term import JsonFileLongTermStore, SqliteLongTermStore
+from agent_manager.observability import ObservabilityEmitter, emitter, redact_secrets, timed
 from agent_manager.state import SqliteStateStore
 from agent_manager.tools import (
     ApprovalDecision,
@@ -96,6 +101,7 @@ __all__ = [
     "FAISSRetrieverAdapter",
     "FAISSRetrievalPlugin",
     "FunctionTool",
+    "JsonFileLongTermStore",
     "HashEmbeddingProvider",
     "InMemoryKeywordRetriever",
     "InMemoryVectorRetriever",
@@ -105,6 +111,7 @@ __all__ = [
     "LlamaIndexRetrievalPlugin",
     "LoggingConfig",
     "LoopState",
+    "ObservabilityEmitter",
     "MCPToolAdapter",
     "MCPToolsPlugin",
     "Message",
@@ -126,9 +133,13 @@ __all__ = [
     "RuntimeConfig",
     "RuntimeLimits",
     "SentenceTransformerEmbeddingProvider",
+    "SqliteLongTermStore",
     "SqliteStateStore",
     "StructuredOutputSpec",
     "TextChunker",
+    "TinyDBToolAdapter",
+    "TinyDBToolsPlugin",
+    "ToolPolicyConfig",
     "ToolCallRequest",
     "ToolContext",
     "ToolRegistry",
@@ -138,12 +149,15 @@ __all__ = [
     "available_providers",
     "build_provider",
     "default_builtin_tools",
+    "emitter",
     "export_all",
     "load_config",
     "register_builtin_tools",
+    "redact_secrets",
     "register_provider",
     "to_langchain_tool_definition",
     "to_mcp_tool_definition",
     "to_openai_function",
+    "timed",
     "to_openapi_schema",
 ]
