@@ -80,6 +80,15 @@ class ProviderConfig:
         value = self.settings.get("token_counter_chars_per_token")
         return float(value) if value is not None else fallback
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "model": self.model,
+            "base_url": self.base_url,
+            "api_key_env": self.api_key_env,
+            "settings": dict(self.settings),
+        }
+
 
 @dataclass(slots=True)
 class RuntimeLimits:
@@ -100,6 +109,15 @@ class RuntimeLimits:
             max_output_tokens=int(data.get("max_output_tokens", 1024)),
         )
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "max_steps": self.max_steps,
+            "timeout_seconds": self.timeout_seconds,
+            "max_consecutive_failures": self.max_consecutive_failures,
+            "max_context_tokens": self.max_context_tokens,
+            "max_output_tokens": self.max_output_tokens,
+        }
+
 
 @dataclass(slots=True)
 class LoggingConfig:
@@ -113,6 +131,12 @@ class LoggingConfig:
             level=str(data.get("level", "WARNING")),
             json_output=bool(data.get("json_output", False)),
         )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "level": self.level,
+            "json_output": self.json_output,
+        }
 
 
 @dataclass(slots=True)
@@ -148,6 +172,15 @@ class ContextConfig:
             pre_call_functions=pre_call_functions,
         )
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "history_window": self.history_window,
+            "summary_trigger_messages": self.summary_trigger_messages,
+            "retrieval_top_k": self.retrieval_top_k,
+            "max_memory_facts": self.max_memory_facts,
+            "pre_call_functions": list(self.pre_call_functions),
+        }
+
 
 @dataclass(slots=True)
 class ToolPolicyConfig:
@@ -165,6 +198,14 @@ class ToolPolicyConfig:
             denied_tags=list(data.get("denied_tags", [])),
             denied_permissions=list(data.get("denied_permissions", [])),
         )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "allowed_tools": list(self.allowed_tools),
+            "denied_tools": list(self.denied_tools),
+            "denied_tags": list(self.denied_tags),
+            "denied_permissions": list(self.denied_permissions),
+        }
 
 
 @dataclass(slots=True)
@@ -358,6 +399,21 @@ class RuntimeConfig:
                 f"Unsupported state backend '{self.state_backend}'. Use 'sqlite' or 'json'."
             )
         return backend
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "profile": self.profile,
+            "system_prompt": self.system_prompt,
+            "state_backend": self.state_backend,
+            "state_path": self.state_path,
+            "state_dir": self.state_dir,
+            "provider": self.provider.to_dict(),
+            "runtime": self.runtime.to_dict(),
+            "logging": self.logging.to_dict(),
+            "context": self.context.to_dict(),
+            "tool_policy": self.tool_policy.to_dict(),
+            "extra": dict(self.extra),
+        }
 
 
 def load_config(path: str | Path | None = None, *, prefix: str = "AGENT_MANAGER_") -> RuntimeConfig:

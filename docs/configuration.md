@@ -5,6 +5,7 @@
 - Python dictionaries through `RuntimeConfig.from_dict()`
 - environment variables through `RuntimeConfig.from_env()`
 - config files through `RuntimeConfig.from_file()` or `load_config()`
+- the interactive wizard through `agent-manager-config`
 
 Supported config file formats:
 
@@ -205,3 +206,5 @@ config = RuntimeConfig.from_env()
 - use `sqlite` for resumable local work
 - tune `max_context_tokens` to the real model you are using
 - keep `pre_call_functions` explicit per profile so behavior stays predictable
+
+If you want a guided way to create the TOML file, see [Configuration Tool](./config-tool.md).

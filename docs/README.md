@@ -6,6 +6,7 @@ This folder documents the current `agent-manager` implementation and maps it bac
 
 - [Get Started](./get_started.md)
 - [Configuration](./configuration.md)
+- [Configuration Tool](./config-tool.md)
 - [Provider Configurations](./provider-configurations.md)
 - [Providers and Connectivity](./providers-and-connectivity.md)
 - [Context Manager](./context-manager.md)

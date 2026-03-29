@@ -42,10 +42,19 @@ Optional configuration can be supplied with `--config path/to/config.toml`.
 See the docs folder for implementation guides:
 
 - `docs/get_started.md`
+- `docs/config-tool.md`
 - `docs/tools.md`
 - `docs/context-manager.md`
 - `docs/providers-and-connectivity.md`
 - `docs/advanced-two-agent-coding.md`
+
+## Config Wizard
+
+Generate and test TOML configs with:
+
+```bash
+agent-manager-config
+```
 
 ## Package Layout
 
