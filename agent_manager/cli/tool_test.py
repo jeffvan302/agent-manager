@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from agent_manager.config import load_config
+from agent_manager.errors import PolicyViolationError
 from agent_manager.runtime.session import AgentSession
 from agent_manager.tools.base import ToolContext, ToolSpec
 from agent_manager.types import ToolCallRequest
@@ -176,7 +177,46 @@ def main(argv: Sequence[str] | None = None) -> int:
         arguments=arguments,
     )
 
-    result = session.tool_executor.execute(call, context)
+    try:
+        result = session.tool_executor.execute(call, context)
+    except PolicyViolationError as exc:
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "ok": False,
+                        "tool_name": args.tool_name,
+                        "error": str(exc),
+                    },
+                    indent=2,
+                    ensure_ascii=True,
+                )
+            )
+        else:
+            print(f"Tool execution blocked by policy: {exc}", file=sys.stderr)
+            if config.profile == "readonly":
+                print(
+                    "Hint: add [tool_policy] allowed_tools = "
+                    f"[\"{args.tool_name}\"] or use profile = \"local-dev\" for direct testing.",
+                    file=sys.stderr,
+                )
+        return 1
+    except Exception as exc:  # pragma: no cover - defensive CLI fallback
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "ok": False,
+                        "tool_name": args.tool_name,
+                        "error": str(exc),
+                    },
+                    indent=2,
+                    ensure_ascii=True,
+                )
+            )
+        else:
+            print(f"Tool execution failed: {exc}", file=sys.stderr)
+        return 1
 
     if args.json:
         print(json.dumps(result.to_dict(), indent=2, ensure_ascii=True))

@@ -71,7 +71,48 @@ class ToolTestCliTests(unittest.TestCase):
         payload = json.loads(stdout.getvalue())
         self.assertEqual(exit_code, 0)
         self.assertEqual(payload["content"], "hello tool test")
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertNotIn("Tool execution blocked by policy", stderr.getvalue())
+        self.assertNotIn("Tool execution failed:", stderr.getvalue())
+
+    def test_policy_blocked_tool_returns_clean_error_instead_of_traceback(self) -> None:
+        readonly_config = self.temp_dir / "readonly.toml"
+        readonly_config.write_text(
+            "\n".join(
+                [
+                    'profile = "readonly"',
+                    'state_backend = "json"',
+                    f'state_dir = "{(self.temp_dir / "state-readonly").as_posix()}"',
+                    "",
+                    "[provider]",
+                    'name = "echo"',
+                    'model = "echo-v1"',
+                    "",
+                    "[tools.web_search]",
+                    "enabled = true",
+                    'backend = "duckduckgo"',
+                    "",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            exit_code = main(
+                [
+                    "--config",
+                    str(readonly_config),
+                    "web_search",
+                    "budget GPU",
+                ]
+            )
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("Tool execution blocked by policy", stderr.getvalue())
+        self.assertIn("allowed_tools", stderr.getvalue())
 
 
 if __name__ == "__main__":

@@ -204,6 +204,80 @@ class DuckDuckGoWebSearcher(ConfiguredWebSearcher):
         )
 
 
+class GoogleSearchToolWebSearcher(ConfiguredWebSearcher):
+    """Google-backed search via the installed google_search_tool package."""
+
+    source = "google"
+    default_endpoint = "https://www.google.com/search"
+
+    def search(self, query: str, *, limit: int = 5) -> list[WebSearchResult]:
+        bounded_limit = self._bounded_limit(limit)
+        try:
+            from google_search_tool import search as google_search
+        except ImportError as exc:  # pragma: no cover - depends on optional package
+            raise ConfigurationError(
+                "google web_search requires the installed 'google_search_tool' package. "
+                "See google_search_tool.md for installation and browser setup."
+            ) from exc
+
+        raw_results = google_search(
+            query,
+            num_results=bounded_limit,
+            headless=bool(self.settings.get("headless", True)),
+            cookie_file=self.settings.get("cookie_file"),
+        )
+        return self._parse_results(raw_results, limit=bounded_limit)
+
+    def _parse_results(
+        self,
+        items: Any,
+        *,
+        limit: int,
+    ) -> list[WebSearchResult]:
+        if not isinstance(items, list):
+            return []
+
+        results: list[WebSearchResult] = []
+        for item in items:
+            if len(results) >= limit:
+                break
+            if isinstance(item, Mapping):
+                result = self._mapping_to_result(item)
+            else:
+                result = self._object_to_result(item)
+            if result is not None:
+                results.append(result)
+        return results[:limit]
+
+    def _mapping_to_result(self, item: Mapping[str, Any]) -> WebSearchResult | None:
+        title = item.get("title")
+        url = item.get("url")
+        snippet = item.get("snippet") or item.get("description")
+        if not isinstance(title, str) or not isinstance(url, str):
+            return None
+        return WebSearchResult(
+            title=title,
+            url=url,
+            snippet=str(snippet or ""),
+            source=self.source,
+            metadata={"displayed_url": item.get("display_url") or item.get("displayedURL") or item.get("displayed_url")},
+        )
+
+    def _object_to_result(self, item: Any) -> WebSearchResult | None:
+        title = getattr(item, "title", None)
+        url = getattr(item, "url", None)
+        snippet = getattr(item, "description", None)
+        if not isinstance(title, str) or not isinstance(url, str):
+            return None
+        return WebSearchResult(
+            title=title,
+            url=url,
+            snippet=str(snippet or ""),
+            source=self.source,
+            metadata={"displayed_url": getattr(item, "displayed_url", None)},
+        )
+
+
 class SerpAPIWebSearcher(APIKeyWebSearcher):
     """SerpAPI-backed web search."""
 
@@ -422,7 +496,7 @@ class BraveWebSearcher(APIKeyWebSearcher):
 
 
 def available_web_search_backends() -> list[str]:
-    return ["duckduckgo", "serpapi", "tavily", "brave"]
+    return ["google", "duckduckgo", "serpapi", "tavily", "brave"]
 
 
 def build_web_searcher(
@@ -442,6 +516,8 @@ def build_web_searcher(
         "max_results": normalized.max_results,
         "settings": normalized.settings,
     }
+    if backend == "google":
+        return GoogleSearchToolWebSearcher(**common_kwargs)
     if backend == "duckduckgo":
         return DuckDuckGoWebSearcher(**common_kwargs)
     if backend == "serpapi":
@@ -474,6 +550,7 @@ __all__ = [
     "BraveWebSearcher",
     "ConfiguredWebSearcher",
     "DuckDuckGoWebSearcher",
+    "GoogleSearchToolWebSearcher",
     "SerpAPIWebSearcher",
     "TavilyWebSearcher",
     "WebSearchResult",

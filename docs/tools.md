@@ -107,16 +107,62 @@ Notes:
 
 Purpose:
 
-- send a raw HTTP request and capture status, headers, and body
+- fetch a page through the browser-backed `google_search_tool` engine for normal `GET` page requests, or send a raw HTTP request for API-style calls
 
 Typical arguments:
 
 ```json
 {
   "url": "https://httpbin.org/get",
+  "method": "GET"
+}
+```
+
+Browser-backed page fetch example:
+
+```json
+{
+  "url": "https://example.com",
   "method": "GET",
+  "response_format": "text",
+  "headless": true,
+  "cookie_file": "google_cookies.json"
+}
+```
+
+Rendered HTML example:
+
+```json
+{
+  "url": "https://example.com",
+  "response_format": "html"
+}
+```
+
+PDF export example:
+
+```json
+{
+  "url": "https://example.com/report",
+  "response_format": "pdf",
+  "output_path": "report.pdf",
+  "page_format": "Letter",
+  "print_background": false
+}
+```
+
+Raw API request example:
+
+```json
+{
+  "url": "https://httpbin.org/post",
+  "method": "POST",
+  "engine": "raw",
   "headers": {
     "Accept": "application/json"
+  },
+  "json": {
+    "name": "demo"
   }
 }
 ```
@@ -129,10 +175,15 @@ Purpose:
 
 Configurable backends:
 
+- `google`
 - `duckduckgo`
 - `serpapi`
 - `tavily`
 - `brave`
+
+Default backend:
+
+- `google` via the installed `google_search_tool`
 
 Typical arguments:
 

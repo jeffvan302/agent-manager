@@ -211,7 +211,7 @@ class ToolPolicyConfig:
 @dataclass(slots=True)
 class WebSearchToolConfig:
     enabled: bool = True
-    backend: str = "duckduckgo"
+    backend: str = "google"
     endpoint: str | None = None
     api_key_env: str | None = None
     api_key: str | None = None
@@ -224,7 +224,7 @@ class WebSearchToolConfig:
         data = data or {}
         return cls(
             enabled=bool(data.get("enabled", True)),
-            backend=str(data.get("backend", "duckduckgo")),
+            backend=str(data.get("backend", "google")),
             endpoint=data.get("endpoint"),
             api_key_env=data.get("api_key_env"),
             api_key=data.get("api_key"),

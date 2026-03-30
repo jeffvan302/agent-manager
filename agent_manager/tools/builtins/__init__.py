@@ -18,6 +18,7 @@ from agent_manager.tools.web_search import (
     BaseWebSearcher,
     BraveWebSearcher,
     DuckDuckGoWebSearcher,
+    GoogleSearchToolWebSearcher,
     SerpAPIWebSearcher,
     TavilyWebSearcher,
     available_web_search_backends,
@@ -38,7 +39,7 @@ def default_builtin_tools(
         HttpRequestTool(),
     ]
     if include_web_search:
-        tools.append(WebSearchTool(web_searcher or DuckDuckGoWebSearcher()))
+        tools.append(WebSearchTool(web_searcher or GoogleSearchToolWebSearcher()))
     if retriever is not None:
         tools.append(RetrieveDocumentsTool(retriever))
     return tools
@@ -74,6 +75,7 @@ __all__ = [
     "BaseWebSearcher",
     "BraveWebSearcher",
     "DuckDuckGoWebSearcher",
+    "GoogleSearchToolWebSearcher",
     "SerpAPIWebSearcher",
     "TavilyWebSearcher",
     "available_web_search_backends",

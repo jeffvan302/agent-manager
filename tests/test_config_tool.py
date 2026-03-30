@@ -131,6 +131,7 @@ class ConfigToolTests(unittest.TestCase):
         help_text = web_search_backend_help_text()
         fields = tool_fields()
 
+        self.assertIn("google", help_text)
         self.assertIn("duckduckgo", help_text)
         self.assertIn("serpapi", help_text)
         self.assertIn("tavily", help_text)

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -11,6 +13,7 @@ from agent_manager import AgentSession, RuntimeConfig
 from agent_manager.tools.builtins.web import WebSearchTool
 from agent_manager.tools.web_search import (
     BraveWebSearcher,
+    GoogleSearchToolWebSearcher,
     SerpAPIWebSearcher,
     TavilyWebSearcher,
     build_web_searcher,
@@ -50,6 +53,11 @@ class WebSearchTests(unittest.TestCase):
         self.assertIsInstance(searcher, SerpAPIWebSearcher)
         self.assertEqual(searcher.max_results, 7)
 
+    def test_build_web_searcher_defaults_to_google_backend(self) -> None:
+        searcher = build_web_searcher()
+
+        self.assertIsInstance(searcher, GoogleSearchToolWebSearcher)
+
     def test_session_can_disable_web_search_tool(self) -> None:
         session = AgentSession(
             config=RuntimeConfig.from_dict(
@@ -87,6 +95,38 @@ class WebSearchTests(unittest.TestCase):
 
         self.assertIsInstance(tool, WebSearchTool)
         self.assertIsInstance(tool.searcher, BraveWebSearcher)
+
+    def test_google_search_backend_parses_library_results(self) -> None:
+        def fake_search(
+            query: str,
+            *,
+            num_results: int,
+            headless: bool,
+            cookie_file: str | None,
+        ) -> list[dict[str, str]]:
+            self.assertEqual(query, "best nvidia gpu")
+            self.assertEqual(num_results, 3)
+            self.assertTrue(headless)
+            self.assertEqual(cookie_file, "cookies.json")
+            return [
+                {
+                    "title": "GPU Training Guide",
+                    "url": "https://example.com/gpu-guide",
+                    "snippet": "Choose the right NVIDIA GPU.",
+                    "display_url": "example.com",
+                }
+            ]
+
+        fake_module = types.SimpleNamespace(search=fake_search)
+        with patch.dict(sys.modules, {"google_search_tool": fake_module}):
+            searcher = GoogleSearchToolWebSearcher(
+                settings={"headless": True, "cookie_file": "cookies.json"}
+            )
+            results = searcher.search("best nvidia gpu", limit=3)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].source, "google")
+        self.assertEqual(results[0].title, "GPU Training Guide")
 
     def test_serpapi_search_builds_expected_query_and_parses_results(self) -> None:
         captured_request = {}

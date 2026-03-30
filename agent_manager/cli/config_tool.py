@@ -76,6 +76,12 @@ PROFILE_HELP: dict[str, str] = {
 }
 
 WEB_SEARCH_PRESETS: dict[str, dict[str, Any]] = {
+    "google": {
+        "description": "Google search via the installed google_search_tool package.",
+        "endpoint": "https://www.google.com/search",
+        "api_key_env": None,
+        "settings": {"headless": True},
+    },
     "duckduckgo": {
         "description": "No-key instant-answer style search backend.",
         "endpoint": "https://api.duckduckgo.com/",
@@ -123,7 +129,11 @@ def web_search_backend_help_text() -> str:
         f"{name}: {WEB_SEARCH_PRESETS.get(name, {}).get('description', 'configured backend')}"
         for name in names
     ]
-    return "Available web_search backends: " + "; ".join(descriptions) + "."
+    return (
+        "Available web_search backends: "
+        + "; ".join(descriptions)
+        + ". Note: this config controls implementation, while tool_policy controls access."
+    )
 
 
 @dataclass(slots=True)
@@ -760,8 +770,8 @@ def tool_fields() -> list[FieldSpec]:
         FieldSpec(
             label="tools.web_search.enabled",
             help_text=(
-                "Enable or disable the built-in web_search tool. "
-                "Set this to false to omit the tool from built-in registration."
+                "Enable or disable built-in registration for web_search. "
+                "This does not automatically grant policy access under readonly profiles."
             ),
             getter=lambda config: config.tools.web_search.enabled,
             setter=_set_tools_web_search_bool("enabled"),
@@ -776,7 +786,8 @@ def tool_fields() -> list[FieldSpec]:
             label="tools.web_search.endpoint",
             help_text=(
                 "Optional custom endpoint override for the selected backend. "
-                "Leave unset to use the built-in default for that backend."
+                "Leave unset to use the built-in default for that backend. "
+                "For the google backend this is informational because the library handles requests."
             ),
             getter=lambda config: config.tools.web_search.endpoint,
             setter=_set_tools_web_search_string("endpoint"),
@@ -818,7 +829,8 @@ def tool_fields() -> list[FieldSpec]:
             label="tools.web_search.settings",
             help_text=(
                 "Optional backend-specific JSON object. "
-                "Examples: {\"engine\":\"google\"} for SerpAPI, "
+                "Examples: {\"headless\":true,\"cookie_file\":\"google_cookies.json\"} for google, "
+                "{\"engine\":\"google\"} for SerpAPI, "
                 "{\"search_depth\":\"basic\",\"topic\":\"general\"} for Tavily, "
                 "{\"extra_snippets\":true} for Brave."
             ),

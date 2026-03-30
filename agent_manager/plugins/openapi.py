@@ -56,6 +56,7 @@ class OpenAPIToolAdapter(BaseTool):
         payload: dict[str, Any] = {
             "url": url,
             "method": self.operation.method.upper(),
+            "engine": "raw",
             "headers": headers,
         }
         if "timeout_seconds" in arguments:

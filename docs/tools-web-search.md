@@ -12,10 +12,37 @@ This controls:
 
 ## Supported backends
 
+- `google`
 - `duckduckgo`
 - `serpapi`
 - `tavily`
 - `brave`
+
+## Default Google example
+
+When nothing else is configured, `agent-manager` now defaults to `google` through the installed `google_search_tool` package.
+
+```toml
+[tools.web_search]
+enabled = true
+backend = "google"
+timeout_seconds = 20
+max_results = 5
+
+[tools.web_search.settings]
+headless = true
+cookie_file = "google_cookies.json"
+```
+
+Setup guide:
+
+- see [google_search_tool.md](../google_search_tool.md)
+
+Notes:
+
+- import path is `google_search_tool`
+- this backend does not require an API key
+- it is now the default when no other web-search backend is configured
 
 ## DuckDuckGo example
 
@@ -31,7 +58,7 @@ max_results = 5
 Notes:
 
 - no API key is required
-- this is a good default for simple local experiments
+- this is now an explicit fallback backend rather than the default
 
 ## SerpAPI example
 

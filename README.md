@@ -66,8 +66,9 @@ tool-test read_file "requirements.md"
 tool-test web_search "budget GPU for yolo12 training"
 ```
 
-`web_search` can now be configured through `[tools.web_search]` in TOML, including
-`duckduckgo`, `serpapi`, `tavily`, and `brave` backends.
+`web_search` can now be configured through `[tools.web_search]` in TOML. The default
+backend is `google` via your installed `google_search_tool`, and you can also switch to
+`duckduckgo`, `serpapi`, `tavily`, or `brave`.
 
 ## Package Layout
 

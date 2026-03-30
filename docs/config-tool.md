@@ -43,10 +43,13 @@ In the tool policy section, the wizard now lists the known built-in tool names s
 
 In the tools section, the wizard can configure the built-in `web_search` tool backend, including:
 
+- `google`
 - `duckduckgo`
 - `serpapi`
 - `tavily`
 - `brave`
+
+The `google` backend now assumes your installed `google_search_tool` package and its browser setup from [google_search_tool.md](../google_search_tool.md).
 
 For provider authentication, the wizard now supports both:
 

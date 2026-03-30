@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import shutil
+import sys
+import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from uuid import uuid4
 
 from agent_manager import AgentSession, RuntimeConfig
@@ -11,6 +15,7 @@ from agent_manager.memory import InMemoryKeywordRetriever
 from agent_manager.providers.base import BaseProvider
 from agent_manager.tools import ToolContext, ToolExecutor, ToolRegistry, ToolSpec
 from agent_manager.tools.base import BaseTool, ToolResult
+from agent_manager.tools.builtins.http import HttpRequestTool
 from agent_manager.types import ProviderRequest, ProviderResult, ToolCallRequest
 
 
@@ -225,6 +230,133 @@ class ToolSystemTests(unittest.TestCase):
             self.assertEqual(result.output["results"][0]["id"], "doc-1")
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
+
+    def test_http_request_uses_google_fetch_tool_for_browser_gets(self) -> None:
+        tool = HttpRequestTool()
+
+        def fake_get_page(url: str, *, headless: bool, cookie_file: str | None):
+            self.assertEqual(url, "https://example.com")
+            self.assertTrue(headless)
+            self.assertEqual(cookie_file, "cookies.json")
+            return {
+                "url": url,
+                "text": "rendered page text",
+                "html": "<html><body>rendered</body></html>",
+            }
+
+        def fake_get_pdf(**kwargs):  # pragma: no cover - should not be used in this test
+            raise AssertionError("get_pdf should not be called for text fetches")
+
+        fake_module = types.SimpleNamespace(get_page=fake_get_page, get_pdf=fake_get_pdf)
+        with patch.dict(sys.modules, {"google_search_tool": fake_module}):
+            result = asyncio.run(
+                tool.invoke(
+                    {
+                        "url": "https://example.com",
+                        "method": "GET",
+                        "cookie_file": "cookies.json",
+                    },
+                    ToolContext(task_id="task-http", step_index=0, tool_call_id="http-1"),
+                )
+            )
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.output["body"], "rendered page text")
+        self.assertEqual(result.output["engine"], "browser")
+        self.assertEqual(result.output["content_format"], "text")
+
+    def test_http_request_can_return_pdf_from_google_fetch_tool(self) -> None:
+        tool = HttpRequestTool()
+
+        def fake_get_page(**kwargs):  # pragma: no cover - should not be used in this test
+            raise AssertionError("get_page should not be called for pdf fetches")
+
+        def fake_get_pdf(
+            url: str,
+            *,
+            output_path: str | None,
+            headless: bool,
+            cookie_file: str | None,
+            page_format: str,
+            print_background: bool,
+        ):
+            self.assertEqual(url, "https://example.com/report")
+            self.assertEqual(output_path, "report.pdf")
+            self.assertEqual(page_format, "Letter")
+            self.assertFalse(print_background)
+            self.assertTrue(headless)
+            self.assertEqual(cookie_file, "cookies.json")
+            return {
+                "url": url,
+                "pdf_bytes": b"%PDF-demo%",
+                "path": "report.pdf",
+            }
+
+        fake_module = types.SimpleNamespace(get_page=fake_get_page, get_pdf=fake_get_pdf)
+        with patch.dict(sys.modules, {"google_search_tool": fake_module}):
+            result = asyncio.run(
+                tool.invoke(
+                    {
+                        "url": "https://example.com/report",
+                        "response_format": "pdf",
+                        "output_path": "report.pdf",
+                        "cookie_file": "cookies.json",
+                        "page_format": "Letter",
+                        "print_background": False,
+                    },
+                    ToolContext(task_id="task-http", step_index=0, tool_call_id="http-2"),
+                )
+            )
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.output["engine"], "browser")
+        self.assertEqual(result.output["content_format"], "pdf")
+        self.assertEqual(result.output["path"], "report.pdf")
+        self.assertEqual(result.output["headers"]["Content-Type"], "application/pdf")
+        self.assertTrue(result.output["body"])
+
+    def test_http_request_keeps_raw_backend_for_post_requests(self) -> None:
+        tool = HttpRequestTool()
+
+        def fake_request(
+            method: str,
+            url: str,
+            headers: dict[str, str],
+            data: bytes | None,
+            timeout: float,
+            max_chars: int,
+        ) -> dict[str, object]:
+            self.assertEqual(method, "POST")
+            self.assertEqual(url, "https://api.example.com/items")
+            self.assertEqual(headers["Content-Type"], "application/json")
+            self.assertEqual(json.loads(data.decode("utf-8")), {"name": "demo"})
+            self.assertEqual(timeout, 30.0)
+            self.assertEqual(max_chars, 20000)
+            return {
+                "url": url,
+                "status": 200,
+                "headers": {"Content-Type": "application/json"},
+                "body": "{\"ok\":true}",
+                "truncated": False,
+                "engine": "raw",
+                "content_format": "text",
+                "path": None,
+            }
+
+        tool._request = fake_request  # type: ignore[method-assign]
+        result = asyncio.run(
+            tool.invoke(
+                {
+                    "url": "https://api.example.com/items",
+                    "method": "POST",
+                    "json": {"name": "demo"},
+                },
+                ToolContext(task_id="task-http", step_index=0, tool_call_id="http-3"),
+            )
+        )
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.output["engine"], "raw")
 
     def test_loop_records_failed_tool_observation_and_continues(self) -> None:
         temp_dir = make_workspace_temp_dir()

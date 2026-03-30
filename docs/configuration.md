@@ -60,9 +60,13 @@ pre_call_functions = [
 
 [tools.web_search]
 enabled = true
-backend = "duckduckgo"
+backend = "google"
 timeout_seconds = 20
 max_results = 5
+
+[tools.web_search.settings]
+headless = true
+cookie_file = "google_cookies.json"
 ```
 
 ## Provider config
